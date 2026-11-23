@@ -1,0 +1,45 @@
+name: build-agent
+
+# HomeLab ajanını (PhoneBox tabanlı, .NET) derler ve GitHub "Release" olarak yayımlar.
+# KUR.sh ajanı buradan indirir: agent-v<sürüm> etiketi, PhoneBoxAgent-<sürüm>-linux-<x64|arm64>.zip
+# ve SHA256SUMS-<sürüm>.txt dosyaları. Elle çalıştır: Actions > build-agent > Run workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Derle ve paketle
+        run: |
+          set -euo pipefail
+          VER="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' agent/PhoneBox.Agent/PhoneBox.Agent.csproj | head -n 1)"
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          mkdir -p dist
+          for RID in linux-x64 linux-arm64; do
+            dotnet publish agent/PhoneBox.Agent -c Release -f net10.0 -r "$RID" \
+              --self-contained true -p:PublishSingleFile=true -o "out/$RID"
+            ( cd "out/$RID" && zip -qr "../../dist/PhoneBoxAgent-$VER-$RID.zip" . )
+          done
+          ( cd dist && sha256sum *.zip > "SHA256SUMS-$VER.txt" )
+          ls -l dist
+
+      - name: Sürümü yayımla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="agent-v$VER"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" dist/* --title "HomeLab ajanı $VER" \
+            --notes "PhoneBox (MIT) tabanlı HomeLab ajanı. KUR.sh tarafından indirilir."
