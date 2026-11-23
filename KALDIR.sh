@@ -158,13 +158,13 @@ if sudo test -f /var/lib/homelab-installer/markers/logind-power-created; then
   sudo rmdir /etc/systemd/logind.conf.d 2>/dev/null || true
 fi
 # HomeLab ajanı: yalnızca bu kurulum kurduysa kaldırılır; kullanıcı ayarları ve telefon eşleşmeleri silinmez.
-if sudo test -f /var/lib/homelab-installer/markers/phonebox-installed; then
-  PB_APP="$(sudo cat /var/lib/homelab-installer/phonebox-app 2>/dev/null || true)"
-  systemctl --user disable --now homelab-agent.service phonebox.service >/dev/null 2>&1 || true
-  rm -f "$HOME/.config/systemd/user/homelab-agent.service" "$HOME/.config/systemd/user/phonebox.service"
+if sudo test -f /var/lib/homelab-installer/markers/homelab-installed; then
+  PB_APP="$(sudo cat /var/lib/homelab-installer/homelab-app 2>/dev/null || true)"
+  systemctl --user disable --now homelab-agent.service >/dev/null 2>&1 || true
+  rm -f "$HOME/.config/systemd/user/homelab-agent.service"
   systemctl --user daemon-reload >/dev/null 2>&1 || true
-  if [[ "$PB_APP" == /*/PhoneBox/app && -d "$PB_APP" ]]; then rm -rf "$PB_APP"; fi
-  sudo rm -f /var/lib/homelab-installer/phonebox-app
+  if [[ "$PB_APP" == /*/HomeLab/app && -d "$PB_APP" ]]; then rm -rf "$PB_APP"; fi
+  sudo rm -f /var/lib/homelab-installer/homelab-app
   echo "HomeLab ajanı kaldırıldı (ayarlar ve telefon eşleşmeleri korundu)."
 fi
 # Uyku engelini, otomatik girişi ve kaydedilen Cinnamon uyku ayarlarını geri al.

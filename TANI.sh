@@ -39,7 +39,7 @@ for unit in docker ssh smbd fail2ban avahi-daemon "syncthing@$(id -un)" homelab-
   systemctl is-enabled "$unit" 2>/dev/null || true
 done
 
-section "PHONEBOX"
+section "HOMELAB"
 systemctl --user is-active homelab-agent.service 2>/dev/null || echo "HomeLab kullanıcı servisi çalışmıyor veya kurulu değil."
 curl -fsS --max-time 2 http://127.0.0.1:8765/api/info >/dev/null 2>&1 && echo "HomeLab ajanı yanıt veriyor (8765)." || echo "HomeLab ajanı yanıt vermiyor."
 

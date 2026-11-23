@@ -4,13 +4,13 @@ plugins {
 }
 
 // Release signing: values come from ~/.gradle/gradle.properties or environment variables
-// (PHONEBOX_STORE_FILE, PHONEBOX_STORE_PASSWORD, PHONEBOX_KEY_ALIAS, PHONEBOX_KEY_PASSWORD).
+// (HOMELAB_STORE_FILE, HOMELAB_STORE_PASSWORD, HOMELAB_KEY_ALIAS, HOMELAB_KEY_PASSWORD).
 // Without them, release builds fall back to the debug key so the project still builds anywhere.
 fun signingValue(name: String): String? =
     (project.findProperty(name) as String?) ?: System.getenv(name)
 
 android {
-    namespace = "net.oxog.phonebox.deskpanel"
+    namespace = "net.homelab.panel"
     compileSdk = 35
 
     defaultConfig {
@@ -22,13 +22,13 @@ android {
     }
 
     signingConfigs {
-        val storeFile = signingValue("PHONEBOX_STORE_FILE")
+        val storeFile = signingValue("HOMELAB_STORE_FILE")
         if (storeFile != null && file(storeFile).exists()) {
             create("release") {
                 this.storeFile = file(storeFile)
-                storePassword = signingValue("PHONEBOX_STORE_PASSWORD")
-                keyAlias = signingValue("PHONEBOX_KEY_ALIAS")
-                keyPassword = signingValue("PHONEBOX_KEY_PASSWORD")
+                storePassword = signingValue("HOMELAB_STORE_PASSWORD")
+                keyAlias = signingValue("HOMELAB_KEY_ALIAS")
+                keyPassword = signingValue("HOMELAB_KEY_PASSWORD")
             }
         }
     }

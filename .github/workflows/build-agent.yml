@@ -1,8 +1,7 @@
+# HomeLab ajanını (.NET) Linux x64 ve arm64 için derler ve v<sürüm> sürümüne yükler.
+# KUR.sh ajanı buradan indirir: HomeLabAgent-<sürüm>-linux-<x64|arm64>.zip + SHA256SUMS-<sürüm>.txt
+# Elle çalıştır: Actions > build-agent > Run workflow.
 name: build-agent
-
-# HomeLab ajanını (PhoneBox tabanlı, .NET) derler ve GitHub "Release" olarak yayımlar.
-# KUR.sh ajanı buradan indirir: agent-v<sürüm> etiketi, PhoneBoxAgent-<sürüm>-linux-<x64|arm64>.zip
-# ve SHA256SUMS-<sürüm>.txt dosyaları. Elle çalıştır: Actions > build-agent > Run workflow.
 
 on:
   workflow_dispatch:
@@ -14,32 +13,45 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+
+      - name: Sürüm tutarlılığı (csproj = KUR.sh)
+        run: |
+          set -euo pipefail
+          VER="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' agent/HomeLab.Agent/HomeLab.Agent.csproj | head -n 1)"
+          KUR="$(sed -n 's/^PB_VERSION=//p' KUR.sh | head -n 1)"
+          [ -n "$VER" ] && [ "$VER" = "$KUR" ] || { echo "Sürüm uyuşmuyor: csproj=$VER KUR.sh=$KUR"; exit 1; }
+          echo "VER=$VER" >> "$GITHUB_ENV"
 
       - name: Derle ve paketle
         run: |
           set -euo pipefail
-          VER="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' agent/PhoneBox.Agent/PhoneBox.Agent.csproj | head -n 1)"
-          echo "VER=$VER" >> "$GITHUB_ENV"
           mkdir -p dist
           for RID in linux-x64 linux-arm64; do
-            dotnet publish agent/PhoneBox.Agent -c Release -f net10.0 -r "$RID" \
+            dotnet publish agent/HomeLab.Agent -c Release -f net10.0 -r "$RID" \
               --self-contained true -p:PublishSingleFile=true -o "out/$RID"
-            ( cd "out/$RID" && zip -qr "../../dist/PhoneBoxAgent-$VER-$RID.zip" . )
+            ( cd "out/$RID" && zip -qr "../../dist/HomeLabAgent-$VER-$RID.zip" . )
           done
-          ( cd dist && sha256sum *.zip > "SHA256SUMS-$VER.txt" )
+          ( cd dist && sha256sum HomeLabAgent-*.zip > "SHA256SUMS-$VER.txt" )
           ls -l dist
 
-      - name: Sürümü yayımla
+      - name: Sürüme yükle (var olan sürümü silmez)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="agent-v$VER"
-          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
-          gh release create "$TAG" dist/* --title "HomeLab ajanı $VER" \
-            --notes "PhoneBox (MIT) tabanlı HomeLab ajanı. KUR.sh tarafından indirilir."
+          TAG="v$VER"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "HomeLab $VER" --notes "HomeLab $VER: Linux ajanı (x64, arm64) ve Android paneli."
+          fi
+          # SHA256SUMS ortaktır: APK satırı varsa korunur
+          mkdir -p prev
+          gh release download "$TAG" -p "SHA256SUMS-$VER.txt" -D prev 2>/dev/null || true
+          if [ -f "prev/SHA256SUMS-$VER.txt" ]; then
+            grep -v 'HomeLabAgent-' "prev/SHA256SUMS-$VER.txt" >> "dist/SHA256SUMS-$VER.txt" || true
+          fi
+          gh release upload "$TAG" dist/* --clobber

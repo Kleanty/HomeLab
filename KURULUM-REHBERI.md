@@ -27,7 +27,7 @@ Bu kılavuz, **boş/yeni bir bilgisayara Linux Mint kurduktan sonra** HomeLab pa
 ZIP'i Linux Mint masaüstünde bir klasöre çıkar. Arşivdeki dosyaların aynı ana klasörde ve klasör yapısıyla kalması gerekir:
 
 ```text
-HomeLab_OneClick/
+HomeLab/
 ├── KUR.sh
 ├── KURULUM-REHBERI.md
 ├── KALDIR.sh
@@ -71,7 +71,7 @@ chmod +x KUR.sh
 | Timeshift anlık görüntüsü | Kuruluysa otomatik alınır; alınamazsa uyarı yazılır, kurulum devam eder. |
 | Tailscale | Otomatik kurulur; sonundaki özette çıkan bağlantıyı tarayıcıda açıp giriş yaparsın (kurulum beklemez). |
 | RustDesk | Resmî GitHub sürümünden indirilir, kurulur, başta verdiğin parola ayarlanır. ID özet dosyasında. |
-| HomeLab Panel (telefon paneli) | Ajan bu depodan derlenir (GitHub > Actions > build-agent, `agent-v<sürüm>` sürümü); KUR.sh indirir, SHA-256 doğrular, `homelab-agent` kullanıcı servisi olarak çalıştırır; otomatik güncelleme kapalıdır. adb (USB bağlantı için) kurulur. Telefon uygulaması `android-panel/` (GitHub > Actions > build-apk). Eşleştirme: USB ile kabloyu tak ve telefondaki izni onayla, ya da sunucuda `http://127.0.0.1:8765` > Genel > Wi-Fi & Tailscale > "Telefonu Wi-Fi ile eşleştir" QR'ını okut (TCP 8766 yerel ağda açılır). Docker sayfası ve Servisler aç/kapat, yeniden girişten sonra çalışır (docker grubu). 5 sayfa hazırlanır (HomeLab, Servisler, Uyarılar, Takvim, Ayarlar). Sağlık kontrolü 2 dakikada bir internet (ping) ve servis yanıtlarını denetler; uyarılar telefondaki Uyarılar sayfasında açık/geçmiş görünür (son 200 kayıt, /var/lib/homelab-installer/health-history). `http://127.0.0.1:8765` > Servisler sekmesinden konteynerleri aç/kapat yapabilirsin. KALDIR.sh ajanı kaldırır, ayarları korur. |
+| HomeLab Panel (telefon paneli) | Ajan bu depodan derlenir (GitHub > Actions > build-agent, `v<sürüm>` sürümü); KUR.sh indirir, SHA-256 doğrular, `homelab-agent` kullanıcı servisi olarak çalıştırır; otomatik güncelleme kapalıdır. adb (USB bağlantı için) kurulur. Telefon uygulaması `android-panel/` (GitHub > Actions > build-apk). Eşleştirme: USB ile kabloyu tak ve telefondaki izni onayla, ya da sunucuda `http://127.0.0.1:8765` > Genel > Wi-Fi & Tailscale > "Telefonu Wi-Fi ile eşleştir" QR'ını okut (TCP 8766 yerel ağda açılır). Docker sayfası ve Servisler aç/kapat, yeniden girişten sonra çalışır (docker grubu). 5 sayfa hazırlanır (HomeLab, Servisler, Uyarılar, Takvim, Ayarlar). Sağlık kontrolü 2 dakikada bir internet (ping) ve servis yanıtlarını denetler; uyarılar telefondaki Uyarılar sayfasında açık/geçmiş görünür (son 200 kayıt, /var/lib/homelab-installer/health-history). `http://127.0.0.1:8765` > Servisler sekmesinden konteynerleri aç/kapat yapabilirsin. KALDIR.sh ajanı kaldırır, ayarları korur. |
 | Otomatik oturum açma | Otomatik açılır (zaten ayarlıysa dokunulmaz). Monitörsüz sunucuda yeniden başlatma sonrası RustDesk için gerekir. |
 | AdGuard Home | Otomatik kurulur; LAN IP otomatik bulunur. Router DNS ayarı değiştirilmez. |
 | Ekran kartı / Ollama | Ekran kartı sürücüsü kurulmaz. Ollama CPU üzerinde çalışır. |

@@ -45,7 +45,7 @@ Bu proje [MIT Lisansı](LICENSE) ile paylaşılır. Yazılım "olduğu gibi" sun
 - Ollama: ilk kurulumda sabit [`qwen2.5:1.5b-instruct-q4_K_M`](https://ollama.com/library/qwen2.5/tags) modeli indirilir (dosya yaklaşık 986 MB) ve **CPU üzerinde** çalışır. Yalnızca 2 GiB altı boş disk alanında indirme atlanıp neden raporlanır; daha sonra kullanıcı istediği modeli ayrıca ekleyebilir.
 - Avahi/mDNS: yerel ağda destekleyen cihazlardan `bilgisayar-adi.local` adıyla erişim denenebilir; router'da sabit IP ayarı yapılmaz
 - Docker port kilidi: `homelab-docker-lan-only` servisi, Docker'ın yayınladığı portlara internet kaynaklı yeni bağlantıları engeller; yerel ağ (10/8, 172.16/12, 192.168/16), Tailscale (100.64/10) ve localhost açık kalır. Yalnızca Docker trafiğini etkiler (IPv4); yayınlanan portlar IPv4'e sabitlenmiştir. Host ağını kullanan Beszel Agent (45876) bu filtrenin dışındadır. SSH/Samba/UFW değişmez
-- **HomeLab Panel** (telefon paneli): eski bir Android telefonu sunucu paneline çevirir. HomeLab ajanı bu depodan (`agent/`) GitHub Actions ile derlenip `agent-v<sürüm>` sürümüne yüklenir; KUR.sh onu indirir, SHA-256 doğrular ve systemd kullanıcı servisi (`homelab-agent`) olarak çalıştırır; kendi kendine güncellenmez. adb de kurulur (USB ile bağlantı için). İlk kurulumda 5 sayfa hazırlanır: HomeLab (saat, durum listesi, CPU/RAM/sıcaklık/ağ), Servisler (konteynere dokun: başlat / durdur / yeniden başlat), Uyarılar (açık sorunlar ve geçmiş), Takvim ve Ayarlar (uyarı penceresi, titreşim, ses). Kartlara dokununca büyük grafik penceresi açılır. Sağlık kontrolü 2 dakikada bir internet (ping) ve servisleri denetler; sorun olursa telefonda büyük uyarı açılır. Sunucuda `http://127.0.0.1:8765` adresindeki HomeLab ayar sayfasından sayfaları düzenler, **Servisler** sekmesinden konteynerleri aç/kapat anahtarıyla yönetirsin. Arayüz Türkçe, AMOLED + turkuaz temadadır.
+- **HomeLab Panel** (telefon paneli): eski bir Android telefonu sunucu paneline çevirir. HomeLab ajanı bu depodan (`agent/`) GitHub Actions ile derlenip `v<sürüm>` sürümüne yüklenir; KUR.sh onu indirir, SHA-256 doğrular ve systemd kullanıcı servisi (`homelab-agent`) olarak çalıştırır; kendi kendine güncellenmez. adb de kurulur (USB ile bağlantı için). İlk kurulumda 5 sayfa hazırlanır: HomeLab (saat, durum listesi, CPU/RAM/sıcaklık/ağ), Servisler (konteynere dokun: başlat / durdur / yeniden başlat), Uyarılar (açık sorunlar ve geçmiş), Takvim ve Ayarlar (uyarı penceresi, titreşim, ses). Kartlara dokununca büyük grafik penceresi açılır. Sağlık kontrolü 2 dakikada bir internet (ping) ve servisleri denetler; sorun olursa telefonda büyük uyarı açılır. Sunucuda `http://127.0.0.1:8765` adresindeki HomeLab ayar sayfasından sayfaları düzenler, **Servisler** sekmesinden konteynerleri aç/kapat anahtarıyla yönetirsin. Arayüz Türkçe, AMOLED + turkuaz temadadır.
 - Tailscale ve RustDesk (uzaktan masaüstü; modemde port açmadan bağlanır)
 - Sunucunun uyumaması için uyku/askıya alma kilidi (güç düğmesi ayarı korunur) ve otomatik oturum açma (LightDM; zaten ayarlıysa dokunulmaz)
 
@@ -130,6 +130,15 @@ Zamanlayıcıları kontrol et:
 ```bash
 systemctl list-timers 'homelab-restic*'
 ```
+
+### Tam geri yükleme (yeni kurulmuş makinede)
+
+1. Normal `KUR.sh` kurulumunu tamamla, harici yedek diski bağla ve `/etc/restic/homelab.env` ile parola dosyasını (`/etc/restic/homelab-password`) yeniden oluştur. Parola yoksa yedek açılamaz.
+2. Servisleri durdur: `cd /srv/homelab && sudo docker compose -f <stack>/docker-compose.yml down` (her stack için).
+3. Önce geçici dizine aç ve içeriği kontrol et: `sudo bash -c 'set -a; . /etc/restic/homelab.env; set +a; restic restore latest --target /srv/restore-tmp'`
+4. SQLite veritabanları canlı dosya yerine tutarlı anlık görüntü olarak yedeklenir: `/srv/restore-tmp/var/lib/homelab-restic/staging/sqlite/.../<ad>.snapshot`. Bir veritabanını geri koyarken ilgili `.snapshot` dosyasını asıl yola (`/srv/homelab/appdata/...`) özgün adıyla kopyala; servis çalışırken kopyalama.
+5. Geri kalan dosyaları `/srv/restore-tmp/srv/homelab` altından `/srv/homelab` içine `sudo rsync -a` ile taşı, sonra servisleri tekrar başlat.
+6. Bu adımlar gerçek bir makinede denenmedi; ilk yedekten sonra boş bir dizinde deneme geri yüklemesi yap.
 
 Yedek hedef diski bağlı değilse görev bilerek başarısız olur; sistem diskine sessizce yedek yazmaz. Ollama model dosyaları da `/srv/homelab` altında olduğundan yedeğe girer ve ilk yedek büyük olabilir. Harici diskin kapasitesini buna göre seç. Yedekleme tamamlandıktan sonra farklı bir konuma geri yükleme testi yap; yedek alınıyor olması tek başına geri yüklenebildiğini kanıtlamaz.
 
@@ -303,23 +312,13 @@ Sistem paketlerini kaldırmak ayrı ve ikinci bir tercihtir. Yeni sürüm, kurul
 
 Kaldırma günlüğü `~/HomeLab_Logs/kaldirma-*.log` altında tutulur. Kurulumun eklediği bazı sistem ayarları işaret dosyalarıyla takip edilir; kaldırma betiği önceden var olan yapılandırmaları mümkün olduğunca korur. Kaldırma betiği bu ortamda gerçek Linux Mint bilgisayarında çalıştırılmadı; yalnızca Bash sözdizimi ve statik içerik kontrolleri yapılmıştır. Kaldırma öncesinde önemli verilerin yedeğini al.
 
-## Telefon uygulamasını (APK) GitHub'da derleme
-
-1. Bu klasörü GitHub'daki deponuza yükleyin (`.github/workflows/build-apk.yml` ve `android-panel/` dahil).
-2. Depoda **Actions** sekmesini açın; ilk seferde "Workflows" iznini onaylayın.
-3. Soldan **build-apk** > **Run workflow** > yeşil **Run workflow** düğmesine basın (`android-panel/` değişince de kendiliğinden çalışır).
-4. 5-10 dakika sonra çalıştırmaya tıklayın; en altta **Artifacts** bölümündeki **homelab-panel-apk** dosyasını indirin, zip'ten `app-release.apk` çıkar.
-5. APK'yı telefona gönderip kurun ("bilinmeyen kaynaklardan yükleme" izni gerekir).
-6. İsteğe bağlı sabit imza: Settings > Secrets and variables > Actions altına `HOMELAB_KEYSTORE_BASE64`, `HOMELAB_STORE_PASSWORD`, `HOMELAB_KEY_ALIAS`, `HOMELAB_KEY_PASSWORD` ekleyin. Eklenmezse debug anahtarıyla imzalanır; imza her derlemede değişirse telefondaki eski uygulamayı silip yenisini kurun.
-
-
 ## Telefon ajanı ve uygulaması: derleme sırası
 
 0. Bir kez: depoda **Settings > Pages > Source: GitHub Actions** seç, sonra **Actions > pages > Run workflow** çalıştır. Telefon eşleştirme QR'ı `https://kleanty.github.io/HomeLab/pair/` sayfasına gider (kod `site/` klasöründe); bu sayfa yayında değilse QR açılmaz.
-1. GitHub deposunda **Actions > build-agent > Run workflow**: ajanı derler ve `agent-v<sürüm>` sürümü olarak yayımlar. `KUR.sh` ajanı oradan indirir; bu adım yapılmadan ajan kurulmaz (kurulum bunun dışında devam eder, sonunda uyarır).
-2. **Actions > build-apk > Run workflow**: `homelab-panel-apk` dosyasını indirip telefona kur.
+1. GitHub deposunda **Actions > build-agent > Run workflow**: ajanı derler ve `v<sürüm>` sürümü olarak yayımlar. `KUR.sh` ajanı oradan indirir; bu adım yapılmadan ajan kurulmaz (kurulum bunun dışında devam eder, sonunda uyarır).
+2. **Actions > build-apk > Run workflow**: APK'yı derler. İmza anahtarı yoksa debug imzalı APK yalnızca **Artifacts** altında `homelab-panel-apk` olarak çıkar; sürüme eklenmez. Kalıcı imza için Settings > Secrets and variables > Actions altına `HOMELAB_KEYSTORE_BASE64`, `HOMELAB_STORE_PASSWORD`, `HOMELAB_KEY_ALIAS`, `HOMELAB_KEY_PASSWORD` ekle; bu durumda `HomeLab-<sürüm>.apk` ve `SHA256SUMS-<sürüm>.txt` `v<sürüm>` sürümüne eklenir. İmza anahtarını kaybetme ve değiştirme: değişirse telefondaki uygulamayı silip yeniden kurman gerekir. APK'yı telefona gönderip kur ("bilinmeyen kaynaklardan yükleme" izni gerekir).
 3. Ajan ve APK'yı aynı sürümden kur (eşleştirme bağlantısı değişti: eski APK yeni QR'ı tanımaz). Telefonu USB ile (geliştirici seçeneklerinde USB hata ayıklama açık) veya Wi-Fi ile (ayar sayfasında "Telefonu Wi-Fi ile eşleştir" QR'ı) bağla.
 
 ## Teşekkür ve lisanslar
 
-HomeLab ajanı ve telefon uygulaması, [PhoneBox](https://github.com/ersinkoc/phonebox) projesinin (MIT, © Ersin KOÇ) 0.9.27 sürümünden türetilmiştir; lisans metni `agent/LICENSE-PhoneBox-MIT` ve `android-panel/LICENSE-PhoneBox-MIT` dosyalarındadır, üçüncü taraf bileşen bildirimleri `agent/PhoneBox.Agent/THIRD-PARTY-NOTICES.txt` içindedir. Diğer kurulan yazılımlar (Docker, AdGuard Home, Beszel, Uptime Kuma, Dockge, n8n, Syncthing, Tailscale, RustDesk vb.) kendi lisanslarıyla gelir. Bu depodaki özgün kısımlar [MIT](LICENSE) ile paylaşılır.
+HomeLab ajanı ve telefon uygulaması, [PhoneBox](https://github.com/ersinkoc/phonebox) projesinin (MIT, © Ersin KOÇ) 0.9.27 sürümünden türetilmiştir; lisans metni `third-party/PhoneBox-MIT-LICENSE.txt` dosyasındadır, üçüncü taraf bileşen bildirimleri `agent/HomeLab.Agent/THIRD-PARTY-NOTICES.txt` içindedir. Diğer kurulan yazılımlar (Docker, AdGuard Home, Beszel, Uptime Kuma, Dockge, n8n, Syncthing, Tailscale, RustDesk vb.) kendi lisanslarıyla gelir. Bu depodaki özgün kısımlar [MIT](LICENSE) ile paylaşılır.

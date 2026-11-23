@@ -1,5 +1,5 @@
 // HomeLab interface translations. See docs/DEVELOPMENT.md for the locale checks.
-window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
+window.HomeLabLocaleData = Object.assign(window.HomeLabLocaleData || {}, {
   "tr": {
     "strings": {
       "s.nav.services": "Servisler",
@@ -302,7 +302,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "s.k.macroHint": "keys:… tuşlara basar, text:… yazır, wait:300 bekleme (milisaniye), shortcut:id başka bir kısayol çalıştırır. if:running:spotify … else … endif aradaki adımları sadece koşul geçerli olduğunda (running:program, muted, on:shortcut-id, push:key; ! in front it turns it around) yürütür. clipboard:… metni klipboard'a yerleştirir, paste:… metni kopyaladığı yerden kopyalar ve kopyalananı geri koyur. {clipboard} bir metin, klipboard veya pasta adımında klipboard'da olan şeyle değiştirilir.",
       "s.k.textHint": "{clipboard}, klipboard'daki metinle (ilk 10.000 karakter) değiştirilir.",
       "s.k.clipboardWarn": "Yazılan metin sistemin yazım aracı üzerinden geçer, bu yüzden Mac veya Linux'ta kopyalanmış bir şifre yazıldığında süreç listesinde görünebilir. {clipboard} terminale yazıldığında burada kopyalanan her şeyi çalıştıracaktır. yapıştır: metni Windows klipboard geçmişinden ve bulut klipboardından uzak tutar ve sonra kopyalanan metni geri koyar (kopyalanmış resim ya da dosyalar saklanmaz: klipboard boş bırakılır); Mac'te Evrensel Klipboard hala diğer cihazlarınızla senkronize olabilir.",
-      "s.k.macosPermission": "macOS, PhoneBoxAgent'e Sistem Seçenekleri › Gizlilik ve Güvenlik › Erişimde izin vermek için bir kez sorar.",
+      "s.k.macosPermission": "macOS, HomeLabAgent'e Sistem Seçenekleri › Gizlilik ve Güvenlik › Erişimde izin vermek için bir kez sorar.",
       "s.k.linuxNeedsXdotool": "xdotool (X11) veya wtype (Wayland) gerektirir.",
       "s.k.stateKey": "İtilmiş bir değerden durum (izinlidir)",
       "s.k.offArgs": "Kapatılması gereken argümanlar",
@@ -650,7 +650,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Grid": "Grid",
       "Grok": "Sarı",
       "Guided breathing; tap to start or stop.": "Yönlendirilmiş nefes; başlatmak veya durdurmak için dokun.",
-      "HTML (with <style> and <script>; phonebox.on('state', fn) gets the data)": "HTML (<style> ve <script> ile; phonebox.on('state', fn) veriyi alır)",
+      "HTML (with <style> and <script>; homelab.on('state', fn) gets the data)": "HTML (<style> ve <script> ile; homelab.on('state', fn) veriyi alır)",
       "Hacker News": "Hacker Haber",
       "Haptic feedback": "Haptik geri bildirim",
       "Haptics": "Haptik",
@@ -1030,7 +1030,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "World clocks, forecast and calendar.": "Dünya saatleri, hava tahmini ve takvim.",
       "Your automation rules: which ones hold right now, and a button to pause them all for an hour.": "Otomatik kurallarınız: şu anda hangileri devam ediyor ve hepsini bir saatliğine durdurmak için bir düğme.",
       "Your next calendar event, big, with a countdown; during an event, how much of it is left.": "Bir sonraki takvim olayınız, büyük, geri sayma ile; bir olay sırasında ne kadar kaldığını gösteren.",
-      "Your own HTML, CSS and JavaScript in a sandbox, fed with the PC's data through window.phonebox.": "Kendi HTML, CSS ve JavaScript'iniz bir kum kutusunda, window.phonebox aracılığıyla PC verileriyle beslenmiş durumdadır.",
+      "Your own HTML, CSS and JavaScript in a sandbox, fed with the PC's data through window.homelab.": "Kendi HTML, CSS ve JavaScript'iniz bir kum kutusunda, window.homelab aracılığıyla PC verileriyle beslenmiş durumdadır.",
       "Your own quotes, one per line ('text — author'); empty = built-in": "Kendi alıntılarınız, satır başına birer tane ('text — author'); boş = dahili",
       "Your rules and what they push: on-air sign, webhook values and the notification inbox.": "Kurallarınız ve neyi bastırıyorlar: havada işaret, webhook değerleri ve bildirim kutusu.",
       "a GitHub review is requested": "GitHub incelemesi isteniyor",
