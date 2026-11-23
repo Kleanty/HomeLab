@@ -315,7 +315,7 @@ sudo usermod -aG plugdev "$USER_NAME" 2>/dev/null || true
 PHONEBOX_OK=no
 PHONEBOX_NEW=no
 PB_VERSION=0.9.27
-PB_REPO=Kleanty/HomeLab_OneClick
+PB_REPO=Kleanty/HomeLab
 PB_WAS_INSTALLED=no
 [[ -e "$HOME/.config/systemd/user/phonebox.service" || -e "$HOME/.config/systemd/user/homelab-agent.service" ]] && PB_WAS_INSTALLED=yes
 PB_ARCH=""

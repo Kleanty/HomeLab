@@ -1,4 +1,4 @@
-# Eşleştirme sayfasını (site/) GitHub Pages'e yayımlar: https://kleanty.github.io/HomeLab_OneClick/pair/
+# Eşleştirme sayfasını (site/) GitHub Pages'e yayımlar: https://kleanty.github.io/HomeLab/pair/
 # Bir kez: depoda Settings > Pages > Source: "GitHub Actions" seçilmelidir.
 name: pages
 

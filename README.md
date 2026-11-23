@@ -315,7 +315,7 @@ Kaldırma günlüğü `~/HomeLab_Logs/kaldirma-*.log` altında tutulur. Kurulumu
 
 ## Telefon ajanı ve uygulaması: derleme sırası
 
-0. Bir kez: depoda **Settings > Pages > Source: GitHub Actions** seç, sonra **Actions > pages > Run workflow** çalıştır. Telefon eşleştirme QR'ı `https://kleanty.github.io/HomeLab_OneClick/pair/` sayfasına gider (kod `site/` klasöründe); bu sayfa yayında değilse QR açılmaz.
+0. Bir kez: depoda **Settings > Pages > Source: GitHub Actions** seç, sonra **Actions > pages > Run workflow** çalıştır. Telefon eşleştirme QR'ı `https://kleanty.github.io/HomeLab/pair/` sayfasına gider (kod `site/` klasöründe); bu sayfa yayında değilse QR açılmaz.
 1. GitHub deposunda **Actions > build-agent > Run workflow**: ajanı derler ve `agent-v<sürüm>` sürümü olarak yayımlar. `KUR.sh` ajanı oradan indirir; bu adım yapılmadan ajan kurulmaz (kurulum bunun dışında devam eder, sonunda uyarır).
 2. **Actions > build-apk > Run workflow**: `homelab-panel-apk` dosyasını indirip telefona kur.
 3. Ajan ve APK'yı aynı sürümden kur (eşleştirme bağlantısı değişti: eski APK yeni QR'ı tanımaz). Telefonu USB ile (geliştirici seçeneklerinde USB hata ayıklama açık) veya Wi-Fi ile (ayar sayfasında "Telefonu Wi-Fi ile eşleştir" QR'ı) bağla.

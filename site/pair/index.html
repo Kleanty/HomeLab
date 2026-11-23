@@ -48,7 +48,7 @@ code { font-size: 13px; }
   <div class="card">
     <h2>HomeLab uygulaması yok mu?</h2>
     <p class="muted">Önce uygulamayı kur (Android 5.0 ve üstü), sonra QR kodunu yeniden okut.</p>
-    <a class="btn secondary" href="https://github.com/Kleanty/HomeLab_OneClick">Uygulamayı edin</a>
+    <a class="btn secondary" href="https://github.com/Kleanty/HomeLab">Uygulamayı edin</a>
   </div>
 
   <p class="muted">Bu sayfa yalnızca tarayıcında çalışır. Eşleştirme bilgileri bağlantıdaki <code>#</code> işaretinden sonraki kısımdadır;
@@ -84,7 +84,7 @@ code { font-size: 13px; }
   // rebuilt from the checked fields only, so nothing else from the link reaches the intent syntax
   const query = ['v', 'pc', 'fp', 'port', 'h', 'c'].filter((k) => p.has(k)).map((k) => k + '=' + encodeURIComponent(p.get(k))).join('&');
   const android = /Android/i.test(navigator.userAgent);
-  const fallback = encodeURIComponent('https://github.com/Kleanty/HomeLab_OneClick');
+  const fallback = encodeURIComponent('https://github.com/Kleanty/HomeLab');
   document.getElementById('open').href = android
     ? `intent://pair?${query}#Intent;scheme=homelab;package=net.homelab.panel;S.browser_fallback_url=${fallback};end`
     : `homelab://pair?${query}`;

@@ -300,7 +300,7 @@ app.MapPost("/api/pair/start", (ConfigStore cfg, PairingCodes codes) =>
     var hosts = Lan.Addresses();
     var fingerprint = Lan.Fingerprint(lanCert);
     var link = PairingCodes.Link(Environment.MachineName, fingerprint, lanCfg.Port, hosts, code);
-    var apk = $"https://github.com/Kleanty/HomeLab_OneClick/releases/latest";
+    var apk = $"https://github.com/Kleanty/HomeLab/releases/latest";
     return Results.Json(new
     {
         enabled = true,

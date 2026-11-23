@@ -551,14 +551,14 @@ class AgentLink(private val context: Context) {
             }
 
             /**
-             * Reads https://kleanty.github.io/HomeLab_OneClick/pair/#v=1&... (the QR code; the data is in the fragment so it
+             * Reads https://kleanty.github.io/HomeLab/pair/#v=1&... (the QR code; the data is in the fragment so it
              * never reaches a web server) or homelab://pair?v=1&... (the "Open in HomeLab" button on that page).
              * Anything malformed returns null.
              */
             fun parse(uri: Uri?): PairLink? {
                 if (uri == null) return null
                 val raw = when {
-                    uri.scheme == "https" && uri.host == "kleanty.github.io" && uri.path?.startsWith("/HomeLab_OneClick/pair") == true -> uri.encodedFragment
+                    uri.scheme == "https" && uri.host == "kleanty.github.io" && uri.path?.startsWith("/HomeLab/pair") == true -> uri.encodedFragment
                     uri.scheme == "homelab" && uri.host == "pair" -> uri.encodedQuery
                     else -> null
                 } ?: return null
