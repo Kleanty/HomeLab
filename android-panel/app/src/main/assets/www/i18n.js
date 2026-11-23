@@ -2,7 +2,7 @@
 (() => {
   'use strict';
 
-  const LOCALE_DATA = window.PhoneBoxLocaleData || {};
+  const LOCALE_DATA = window.HomeLabLocaleData || {};
   const LANGUAGES = Object.freeze([
     { code: 'en', name: 'English', nativeName: 'English', locale: 'en-GB' },
     { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', locale: 'tr-TR' },
@@ -797,7 +797,7 @@
       's.k.macroHint': 'keys:… presses keys, text:… types, wait:300 waits (milliseconds), shortcut:id runs another shortcut. if:running:spotify … else … endif runs the steps in between only when the condition holds (running:program, muted, on:shortcut-id, push:key; ! in front turns it around). clipboard:… puts text on the clipboard, paste:… pastes text through it and puts back what was copied. {clipboard} in a text, clipboard or paste step is replaced by what is on the clipboard.',
       's.k.textHint': '{clipboard} is replaced by the text on the clipboard (the first 10,000 characters).',
       's.k.clipboardWarn': 'Typed text goes through the system\'s typing tool, so on a Mac or Linux a copied password can show in the process list while it is typed. Typing {clipboard} into a terminal runs whatever was copied there. paste: keeps its text out of Windows clipboard history and the cloud clipboard and afterwards puts back the text that was copied (a copied picture or files are not kept: the clipboard is left empty); on a Mac, Universal Clipboard may still sync it to your other devices.',
-      's.k.macosPermission': 'macOS asks once to allow PhoneBoxAgent in System Settings › Privacy & Security › Accessibility.',
+      's.k.macosPermission': 'macOS asks once to allow HomeLabAgent in System Settings › Privacy & Security › Accessibility.',
       's.k.linuxNeedsXdotool': 'Needs xdotool (X11) or wtype (Wayland).',
       's.k.stateKey': 'State from a pushed value (optional)',
       's.k.offArgs': 'Arguments to switch off',
@@ -1407,7 +1407,7 @@
       'panel.wake': 'PC aufwecken',
       'panel.waking': 'Wird aufgeweckt…',
       'panel.wakeFailed': 'Nicht aufgewacht. Funktioniert nur im Netzwerk des PCs selbst; prüfe BIOS und Netzwerkadapter-Einstellungen (HomeLab-Anleitung: Wake-on-LAN).',
-      'panel.offlineHelp': 'Läuft der PhoneBox-Agent? USB-Kabel anschließen oder per WLAN koppeln: In den HomeLab-Einstellungen am PC unter Wi-Fi & Tailscale › Telefon per WLAN koppeln den QR-Code scannen.',
+      'panel.offlineHelp': 'Läuft der HomeLab-Agent? USB-Kabel anschließen oder per WLAN koppeln: In den HomeLab-Einstellungen am PC unter Wi-Fi & Tailscale › Telefon per WLAN koppeln den QR-Code scannen.',
       'panel.webviewWarn': 'Veraltetes WebView — aktualisieren Sie Android System WebView oder Google Chrome.',
       'panel.switchingPc': 'Wechsle zu {name}…',
       'panel.otherComputer': 'anderem Computer',
@@ -4444,7 +4444,7 @@
       's.k.macroHint': 'keys:… pressiona teclas, text:… digita, wait:300 espera (milissegundos), shortcut:id executa outro atalho. if:running:spotify … else … endif executa os passos entre eles só quando a condição vale (running:programa, muted, on:id-do-atalho, push:chave; ! na frente inverte). clipboard:… coloca texto na área de transferência, paste:… cola texto por ela e devolve o que estava copiado. {clipboard} em um passo text, clipboard ou paste é trocado pelo que está na área de transferência.',
       's.k.textHint': '{clipboard} é trocado pelo texto da área de transferência (os primeiros 10.000 caracteres).',
       's.k.clipboardWarn': 'O texto digitado passa pela ferramenta de digitação do sistema, então no Mac ou no Linux uma senha copiada pode aparecer na lista de processos enquanto é digitada. Digitar {clipboard} em um terminal executa o que tiver sido copiado. paste: mantém o texto fora do histórico e da área de transferência na nuvem do Windows e depois devolve o texto que estava copiado (uma imagem ou arquivos copiados não são mantidos: a área de transferência fica vazia); no Mac, a Área de Transferência Universal ainda pode sincronizá-lo com seus outros dispositivos.',
-      's.k.macosPermission': 'O macOS pergunta uma vez se pode permitir o PhoneBoxAgent em Ajustes do Sistema › Privacidade e Segurança › Acessibilidade.',
+      's.k.macosPermission': 'O macOS pergunta uma vez se pode permitir o HomeLabAgent em Ajustes do Sistema › Privacidade e Segurança › Acessibilidade.',
       's.k.linuxNeedsXdotool': 'Precisa do xdotool (X11) ou do wtype (Wayland).',
       's.k.stateKey': 'Estado a partir de um valor enviado (push) (opcional)',
       's.k.offArgs': 'Argumentos para desligar',
@@ -6776,7 +6776,7 @@
       's.k.macroHint': 'keys:… πατά πλήκτρα, text:… πληκτρολογεί, wait:300 περιμένει (χιλιοστά του δευτερολέπτου), shortcut:id εκτελεί άλλη συντόμευση. Το if:running:spotify … else … endif εκτελεί τα ενδιάμεσα βήματα μόνο όταν ισχύει η συνθήκη (running:πρόγραμμα, muted, on:id-συντόμευσης, push:κλειδί· το ! μπροστά την αντιστρέφει). Το clipboard:… βάζει κείμενο στο πρόχειρο, το paste:… επικολλά κείμενο μέσω αυτού και επαναφέρει ό,τι είχες αντιγράψει. Το {clipboard} σε βήμα text, clipboard ή paste αντικαθίσταται από ό,τι υπάρχει στο πρόχειρο.',
       's.k.textHint': 'Το {clipboard} αντικαθίσταται από το κείμενο του προχείρου (οι πρώτοι 10.000 χαρακτήρες).',
       's.k.clipboardWarn': 'Το κείμενο που πληκτρολογείται περνά από το εργαλείο πληκτρολόγησης του συστήματος, οπότε σε Mac ή Linux ένας αντιγραμμένος κωδικός μπορεί να φανεί στη λίστα διεργασιών όσο πληκτρολογείται. Αν πληκτρολογήσεις το {clipboard} σε τερματικό, θα εκτελεστεί ό,τι είχε αντιγραφεί. Το paste: κρατά το κείμενό του εκτός ιστορικού και cloud πρόχειρου των Windows και επαναφέρει μετά το κείμενο που είχε αντιγραφεί (μια αντιγραμμένη εικόνα ή αρχεία δεν διατηρούνται: το πρόχειρο μένει άδειο)· σε Mac, το Universal Clipboard μπορεί να το συγχρονίσει στις άλλες συσκευές σου.',
-      's.k.macosPermission': 'Το macOS θα σου ζητήσει μία φορά να επιτρέψεις το PhoneBoxAgent στις Ρυθμίσεις συστήματος › Απόρρητο και ασφάλεια › Προσβασιμότητα.',
+      's.k.macosPermission': 'Το macOS θα σου ζητήσει μία φορά να επιτρέψεις το HomeLabAgent στις Ρυθμίσεις συστήματος › Απόρρητο και ασφάλεια › Προσβασιμότητα.',
       's.k.linuxNeedsXdotool': 'Χρειάζεται το xdotool (X11) ή το wtype (Wayland).',
       's.k.stateKey': 'Κατάσταση από τιμή που στέλνεται με push (προαιρετικό)',
       's.k.offArgs': 'Ορίσματα για απενεργοποίηση',
@@ -7694,7 +7694,7 @@
       's.k.macroHint': 'keys:… nhấn phím, text:… gõ chữ, wait:300 chờ (mili giây), shortcut:id chạy một shortcut khác. if:running:spotify … else … endif chỉ chạy các bước ở giữa khi điều kiện đúng (running:chương-trình, muted, on:id-shortcut, push:khóa; dấu ! đứng trước sẽ đảo điều kiện). clipboard:… đưa văn bản vào clipboard, paste:… dán văn bản qua clipboard rồi trả lại nội dung đã chép. {clipboard} trong bước text, clipboard hoặc paste được thay bằng nội dung đang có trong clipboard.',
       's.k.textHint': '{clipboard} được thay bằng văn bản trong clipboard (10.000 ký tự đầu tiên).',
       's.k.clipboardWarn': 'Văn bản được gõ đi qua công cụ gõ phím của hệ thống, nên trên Mac hoặc Linux mật khẩu đã chép có thể hiện trong danh sách tiến trình khi đang gõ. Gõ {clipboard} vào terminal sẽ chạy bất cứ thứ gì đã chép. paste: giữ văn bản ngoài lịch sử clipboard và clipboard đám mây của Windows rồi trả lại văn bản đã chép trước đó (ảnh hoặc tệp đã chép không được giữ: clipboard để trống); trên Mac, Universal Clipboard vẫn có thể đồng bộ nó sang thiết bị khác của bạn.',
-      's.k.macosPermission': 'macOS sẽ hỏi một lần để cho phép PhoneBoxAgent trong Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Trợ năng.',
+      's.k.macosPermission': 'macOS sẽ hỏi một lần để cho phép HomeLabAgent trong Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Trợ năng.',
       's.k.linuxNeedsXdotool': 'Cần xdotool (X11) hoặc wtype (Wayland).',
       's.k.stateKey': 'Trạng thái từ một giá trị được đẩy tới (tùy chọn)',
       's.k.offArgs': 'Tham số để tắt',
@@ -9172,7 +9172,7 @@
       'World clocks, forecast and calendar.': 'Παγκόσμια ρολόγια, πρόγνωση και ημερολόγιο.',
       'Your automation rules: which ones hold right now, and a button to pause them all for an hour.': 'Οι κανόνες αυτοματισμού σου: ποιοι ισχύουν αυτή τη στιγμή και ένα κουμπί για να τους θέσεις όλους σε παύση για μία ώρα.',
       'Your next calendar event, big, with a countdown; during an event, how much of it is left.': 'Το επόμενο συμβάν του ημερολογίου σου, σε μεγάλο μέγεθος, με αντίστροφη μέτρηση· κατά τη διάρκεια ενός συμβάντος, πόσο απομένει.',
-      'Your own HTML, CSS and JavaScript in a sandbox, fed with the PC\'s data through window.phonebox.': 'Δικός σου κώδικας HTML, CSS και JavaScript σε sandbox, με τα δεδομένα του PC μέσω του window.phonebox.',
+      'Your own HTML, CSS and JavaScript in a sandbox, fed with the PC\'s data through window.homelab.': 'Δικός σου κώδικας HTML, CSS και JavaScript σε sandbox, με τα δεδομένα του PC μέσω του window.homelab.',
       'Your own quotes, one per line (\'text — author\'); empty = built-in': 'Τα δικά σου ρητά, ένα ανά γραμμή (\'κείμενο — συγγραφέας\')· κενό = τα ενσωματωμένα',
       'Your rules and what they push: on-air sign, webhook values and the notification inbox.': 'Οι κανόνες σου και ό,τι στέλνουν: ένδειξη on-air, τιμές webhook και τα εισερχόμενα ειδοποιήσεων.',
       '…or while this pushed value is on (empty = none)': '…ή όσο αυτή η τιμή που στάλθηκε είναι ενεργή (κενό = καμία)',
@@ -9181,7 +9181,7 @@
       'Console': 'Κονσόλα',
       'Smart Stack': 'Smart Stack',
       'Key (POST /api/push/<key>)': 'Κλειδί (POST /api/push/<key>)',
-      'HTML (with <style> and <script>; phonebox.on(\'state\', fn) gets the data)': 'HTML (με <style> και <script>· το phonebox.on(\'state\', fn) λαμβάνει τα δεδομένα)',
+      'HTML (with <style> and <script>; homelab.on(\'state\', fn) gets the data)': 'HTML (με <style> και <script>· το homelab.on(\'state\', fn) λαμβάνει τα δεδομένα)',
       'Pomodoro': 'Pomodoro',
       'Ping': 'Ping',
       'GPU': 'GPU',
@@ -9857,7 +9857,7 @@
       'World clocks, forecast and calendar.': 'Đồng hồ thế giới, dự báo và lịch.',
       'Your automation rules: which ones hold right now, and a button to pause them all for an hour.': 'Các quy tắc tự động hóa của bạn: quy tắc nào đang giữ, và nút tạm dừng tất cả trong một giờ.',
       'Your next calendar event, big, with a countdown; during an event, how much of it is left.': 'Sự kiện lịch kế tiếp, cỡ lớn, kèm đếm ngược; khi đang diễn ra, còn bao lâu.',
-      'Your own HTML, CSS and JavaScript in a sandbox, fed with the PC\'s data through window.phonebox.': 'HTML, CSS và JavaScript của bạn trong sandbox, nhận dữ liệu từ PC qua window.phonebox.',
+      'Your own HTML, CSS and JavaScript in a sandbox, fed with the PC\'s data through window.homelab.': 'HTML, CSS và JavaScript của bạn trong sandbox, nhận dữ liệu từ PC qua window.homelab.',
       'Your own quotes, one per line (\'text — author\'); empty = built-in': 'Trích dẫn của bạn, mỗi dòng một câu (\'nội dung — tác giả\'); trống = dùng sẵn có',
       'Your rules and what they push: on-air sign, webhook values and the notification inbox.': 'Các quy tắc của bạn và những gì chúng đẩy: biển on-air, giá trị webhook và hộp thông báo.',
       '…or while this pushed value is on (empty = none)': '…hoặc trong khi giá trị đẩy này bật (trống = không)',
@@ -9868,7 +9868,7 @@
       'Console': 'Bảng điều khiển',
       'Smart Stack': 'Smart Stack',
       'Key (POST /api/push/<key>)': 'Khóa (POST /api/push/<key>)',
-      "HTML (with <style> and <script>; phonebox.on('state', fn) gets the data)": "HTML (kèm <style> và <script>; phonebox.on('state', fn) nhận dữ liệu)",
+      "HTML (with <style> and <script>; homelab.on('state', fn) gets the data)": "HTML (kèm <style> và <script>; homelab.on('state', fn) nhận dữ liệu)",
       'Pomodoro': 'Pomodoro',
       'Ping': 'Ping',
       'GPU': 'GPU',
@@ -10527,7 +10527,7 @@
       'World clocks, forecast and calendar.': 'Relógios mundiais, previsão e calendário.',
       'Your automation rules: which ones hold right now, and a button to pause them all for an hour.': 'Suas regras de automação: quais estão ativas agora, e um botão para pausar todas por uma hora.',
       'Your next calendar event, big, with a countdown; during an event, how much of it is left.': 'Seu próximo evento do calendário, grande, com contagem regressiva; durante um evento, quanto falta para terminar.',
-      'Your own HTML, CSS and JavaScript in a sandbox, fed with the PC\'s data through window.phonebox.': 'Seu próprio HTML, CSS e JavaScript em um sandbox, alimentado com os dados do PC através de window.phonebox.',
+      'Your own HTML, CSS and JavaScript in a sandbox, fed with the PC\'s data through window.homelab.': 'Seu próprio HTML, CSS e JavaScript em um sandbox, alimentado com os dados do PC através de window.homelab.',
       'Your own quotes, one per line (\'text — author\'); empty = built-in': 'Suas próprias frases, uma por linha (\'texto — autor\'); vazio = usar as padrão',
       'Your rules and what they push: on-air sign, webhook values and the notification inbox.': 'Suas regras e o que elas enviam: aviso no ar, valores de webhook e a caixa de notificações.',
       '…or while this pushed value is on (empty = none)': '…ou enquanto este valor enviado estiver ativo (vazio = nenhum)',
@@ -10536,7 +10536,7 @@
       'Console': 'Console',
       'Smart Stack': 'Smart Stack',
       'Key (POST /api/push/<key>)': 'Chave (POST /api/push/<key>)',
-      'HTML (with <style> and <script>; phonebox.on(\'state\', fn) gets the data)': 'HTML (com <style> e <script>; phonebox.on(\'state\', fn) recebe os dados)',
+      'HTML (with <style> and <script>; homelab.on(\'state\', fn) gets the data)': 'HTML (com <style> e <script>; homelab.on(\'state\', fn) recebe os dados)',
       'Pomodoro': 'Pomodoro',
       'Ping': 'Ping',
       'GPU': 'GPU',
@@ -11234,7 +11234,7 @@
     if (data.catalog) CATALOG[lang] = { ...CATALOG[lang], ...data.catalog };
     if (data.panel) PANEL[lang] = { ...PANEL[lang], ...data.panel };
   }
-  delete window.PhoneBoxLocaleData;
+  delete window.HomeLabLocaleData;
 
   let pref = 'auto';
   let active = 'en';
@@ -11251,7 +11251,7 @@
       ? navigator.languages
       : [navigator.language || 'en'];
     // The APK can have its own system language on Android 13+, independent of WebView's defaults.
-    const native = Array.isArray(window.__phoneboxLanguages) ? window.__phoneboxLanguages : [];
+    const native = Array.isArray(window.__homelabLanguages) ? window.__homelabLanguages : [];
     for (const raw of [...native, ...navs]) {
       if (!raw) continue;
       const lower = String(raw).toLowerCase().replace(/_/g, '-');
@@ -11367,7 +11367,7 @@
   active = resolveLang(pref);
   applyLanguageAttributes();
 
-  window.PhoneBoxI18n = Object.freeze({
+  window.HomeLabI18n = Object.freeze({
     LANGUAGES,
     STRINGS,
     CATALOG,

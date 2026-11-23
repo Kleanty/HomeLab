@@ -4,15 +4,15 @@ import { canKillAnywhere, dialEl, every } from './helpers.js';
 
 // ---------------------------------------------------------------- phone & PC
 // Your own HTML / CSS / JavaScript in a sandboxed iframe (no access to the panel, the agent or the phone). It gets
-// the panel's data through window.phonebox: phonebox.on('state' | 'push' | 'weather' | 'work' | 'quotas', fn),
-// phonebox.data, and may ask for phonebox.run(shortcutId) or phonebox.goto(page).
+// the panel's data through window.homelab: homelab.on('state' | 'push' | 'weather' | 'work' | 'quotas', fn),
+// homelab.data, and may ask for homelab.run(shortcutId) or homelab.goto(page).
 export const HTML_PRELUDE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark"><style>:root{color-scheme:dark}html,body{margin:0;height:100%;background:transparent;color:#eef2f6;font-family:Roboto,"Segoe UI",system-ui,sans-serif;overflow:hidden}</style>
-<script>(function(){var subs={},data={};window.phonebox={data:data,
+<script>(function(){var subs={},data={};window.homelab={data:data,
 on:function(k,f){(subs[k]=subs[k]||[]).push(f);if(data[k]!==undefined)try{f(data[k])}catch(e){console.error(e)}},
-run:function(id){parent.postMessage({phonebox:'run',id:String(id)},'*')},
-goto:function(p){parent.postMessage({phonebox:'goto',page:p},'*')}};
-addEventListener('message',function(e){var m=e.data;if(!m||m.phonebox!=='data')return;data[m.kind]=m.value;(subs[m.kind]||[]).forEach(function(f){try{f(m.value)}catch(err){console.error(err)}})});})();<\/script>`;
+run:function(id){parent.postMessage({homelab:'run',id:String(id)},'*')},
+goto:function(p){parent.postMessage({homelab:'goto',page:p},'*')}};
+addEventListener('message',function(e){var m=e.data;if(!m||m.homelab!=='data')return;data[m.kind]=m.value;(subs[m.kind]||[]).forEach(function(f){try{f(m.value)}catch(err){console.error(err)}})});})();<\/script>`;
 export const HTML_KINDS = ['state', 'push', 'weather', 'work', 'quotas'];
 
 W.html = {
@@ -24,12 +24,12 @@ W.html = {
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.srcdoc = HTML_PRELUDE + (o.html || '');
     box.append(frame);
-    const send = (kind) => { if (D[kind] != null) try { frame.contentWindow?.postMessage({ phonebox: 'data', kind, value: D[kind] }, '*'); } catch (_) {} };
+    const send = (kind) => { if (D[kind] != null) try { frame.contentWindow?.postMessage({ homelab: 'data', kind, value: D[kind] }, '*'); } catch (_) {} };
     frame.addEventListener('load', () => HTML_KINDS.forEach(send));
     const onMsg = (e) => {
       if (e.source !== frame.contentWindow || !e.data) return;
-      if (e.data.phonebox === 'run' && (cfg.shortcuts || []).some((s) => s.id === e.data.id)) { haptic(); api('/run/' + encodeURIComponent(e.data.id), 'POST', 5000).catch(() => toast(t('panel.pcNoAnswer'), 'err')); }
-      if (e.data.phonebox === 'goto') gotoPageRef(e.data.page);
+      if (e.data.homelab === 'run' && (cfg.shortcuts || []).some((s) => s.id === e.data.id)) { haptic(); api('/run/' + encodeURIComponent(e.data.id), 'POST', 5000).catch(() => toast(t('panel.pcNoAnswer'), 'err')); }
+      if (e.data.homelab === 'goto') gotoPageRef(e.data.page);
     };
     window.addEventListener('message', onMsg);
     return {

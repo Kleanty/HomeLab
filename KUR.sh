@@ -312,12 +312,10 @@ if ! command -v adb >/dev/null 2>&1; then
     || INSTALL_WARNINGS+=("adb kurulamadı (USB ile telefon bağlama çalışmaz; Wi-Fi çalışır): sudo apt install android-tools-adb")
 fi
 sudo usermod -aG plugdev "$USER_NAME" 2>/dev/null || true
-PHONEBOX_OK=no
-PHONEBOX_NEW=no
+HOMELAB_OK=no
+HOMELAB_NEW=no
 PB_VERSION=0.9.27
 PB_REPO=Kleanty/HomeLab
-PB_WAS_INSTALLED=no
-[[ -e "$HOME/.config/systemd/user/phonebox.service" || -e "$HOME/.config/systemd/user/homelab-agent.service" ]] && PB_WAS_INSTALLED=yes
 PB_ARCH=""
 case "$(uname -m)" in x86_64|amd64) PB_ARCH=x64;; aarch64|arm64) PB_ARCH=arm64;; esac
 PB_UNIT="$HOME/.config/systemd/user/homelab-agent.service"
@@ -327,13 +325,13 @@ if [[ -z "$PB_ARCH" ]]; then
 elif ! systemctl --user show-environment >/dev/null 2>&1; then
   echo "UYARI: Kullanıcı systemd oturumu yok; HomeLab ajanı kurulmadı."
   INSTALL_WARNINGS+=("HomeLab ajanı kurulamadı: kullanıcı systemd oturumu yok")
-elif [[ -e /var/lib/homelab-installer/markers/homelab-agent && ( -e "$PB_UNIT" || -x "$HOME/.local/share/PhoneBox/app/PhoneBoxAgent" ) ]]; then
+elif [[ -e /var/lib/homelab-installer/markers/homelab-installed && ( -e "$PB_UNIT" || -x "$HOME/.local/share/HomeLab/app/HomeLabAgent" ) ]]; then
   echo "HomeLab ajanı zaten kurulu; dokunulmadı."
-  curl -fsS --max-time 2 "$PB_URL/api/info" >/dev/null 2>&1 && PHONEBOX_OK=yes
+  curl -fsS --max-time 2 "$PB_URL/api/info" >/dev/null 2>&1 && HOMELAB_OK=yes
 else
   PB_TMP="$(mktemp -d)"
-  PB_BASE="https://github.com/$PB_REPO/releases/download/agent-v$PB_VERSION"
-  PB_ZIP="PhoneBoxAgent-$PB_VERSION-linux-$PB_ARCH.zip"
+  PB_BASE="https://github.com/$PB_REPO/releases/download/v$PB_VERSION"
+  PB_ZIP="HomeLabAgent-$PB_VERSION-linux-$PB_ARCH.zip"
   PB_SUM=""
   PB_APP=""
   echo "  HomeLab ajanı $PB_VERSION indiriliyor (yaklaşık 45 MB)..."
@@ -343,11 +341,11 @@ else
     && [[ "$PB_SUM" =~ ^[0-9a-f]{64}$ ]] \
     && echo "$PB_SUM  $PB_TMP/$PB_ZIP" | sha256sum -c --quiet - \
     && unzip -q -o "$PB_TMP/$PB_ZIP" -d "$PB_TMP/agent" \
-    && chmod +x "$PB_TMP/agent/PhoneBoxAgent" \
-    && PB_APP="$("$PB_TMP/agent/PhoneBoxAgent" --print-install-dir 2>/dev/null | tail -n 1)" \
-    && [[ "$PB_APP" == /*/PhoneBox/app && "$PB_APP" != *[\$\"\'\\]* ]]; then
-    systemctl --user disable --now phonebox.service homelab-agent.service >/dev/null 2>&1 || true
-    rm -f "$HOME/.config/systemd/user/phonebox.service"
+    && chmod +x "$PB_TMP/agent/HomeLabAgent" \
+    && PB_APP="$("$PB_TMP/agent/HomeLabAgent" --print-install-dir 2>/dev/null | tail -n 1)" \
+    && [[ "$PB_APP" == /*/HomeLab/app && "$PB_APP" != *[\$\"\'\\]* ]]; then
+    systemctl --user disable --now homelab-agent.service >/dev/null 2>&1 || true
+    rm -f "$HOME/.config/systemd/user/homelab.service"
     mkdir -p "$(dirname "$PB_APP")"
     rm -rf "$PB_APP.new"
     cp -R "$PB_TMP/agent" "$PB_APP.new" && mv "$PB_APP.new" "$PB_APP"
@@ -357,32 +355,31 @@ else
 Description=HomeLab agent (phone panel and service control)
 
 [Service]
-ExecStart="$PB_APP/PhoneBoxAgent"
+ExecStart="$PB_APP/HomeLabAgent"
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=default.target
 EOF_PBUNIT
-    printf '%s\n' "$PB_APP" | sudo tee /var/lib/homelab-installer/phonebox-app >/dev/null
-    sudo touch /var/lib/homelab-installer/markers/phonebox-installed
-    sudo touch /var/lib/homelab-installer/markers/homelab-agent
-    [[ "$PB_WAS_INSTALLED" == yes ]] || PHONEBOX_NEW=yes
+    printf '%s\n' "$PB_APP" | sudo tee /var/lib/homelab-installer/homelab-app >/dev/null
+    sudo touch /var/lib/homelab-installer/markers/homelab-installed
+    HOMELAB_NEW=yes
     systemctl --user daemon-reload
     if systemctl --user enable homelab-agent.service >/dev/null 2>&1 && systemctl --user restart homelab-agent.service >/dev/null 2>&1; then
       for _ in $(seq 1 30); do
-        curl -fsS --max-time 2 "$PB_URL/api/info" >/dev/null 2>&1 && PHONEBOX_OK=yes && break
+        curl -fsS --max-time 2 "$PB_URL/api/info" >/dev/null 2>&1 && HOMELAB_OK=yes && break
         sleep 1
       done
     fi
   else
     echo "UYARI: HomeLab ajanı indirilemedi veya doğrulanamadı; kurulmadı."
-    INSTALL_WARNINGS+=("HomeLab ajanı kurulamadı: https://github.com/$PB_REPO > Actions > build-agent çalıştırılmış ve agent-v$PB_VERSION sürümü yayımlanmış olmalı; sonra KUR.sh'yi yeniden çalıştır")
+    INSTALL_WARNINGS+=("HomeLab ajanı kurulamadı: https://github.com/$PB_REPO > Actions > build-agent çalıştırılmış ve v$PB_VERSION sürümü yayımlanmış olmalı; sonra KUR.sh'yi yeniden çalıştır")
   fi
   rm -rf "$PB_TMP"
-  if [[ "$PHONEBOX_OK" == yes ]]; then
+  if [[ "$HOMELAB_OK" == yes ]]; then
     # Otomatik güncellemeyi kapat; ilk kurulumda sunucuya uygun sayfaları yaz.
-    if ! PB_NEW="$PHONEBOX_NEW" python3 -I - "$PB_URL" <<'PY_PBCFG'
+    if ! PB_NEW="$HOMELAB_NEW" python3 -I - "$PB_URL" <<'PY_PBCFG'
 import json, os, sys, urllib.request
 base = sys.argv[1]
 with urllib.request.urlopen(base + "/api/settings", timeout=10) as r:
@@ -1211,7 +1208,7 @@ FB_PASS="$(sudo docker logs filebrowser 2>&1 | grep -i 'password' | tail -n 1 ||
     echo "YEREL WEB SAYFASI (sunucunun kendi tarayıcısında): http://127.0.0.1:8088"
     echo "YÖNETİM PANELİ    : http://127.0.0.1:8000   kullanıcı: $ACCOUNT_USER   parola: kurulumda belirlediğin (hepsinde aynı)"
     echo
-    if [[ "$PHONEBOX_OK" == yes ]]; then
+    if [[ "$HOMELAB_OK" == yes ]]; then
       echo "TELEFON PANELİ (HomeLab ajanı $PB_VERSION, otomatik güncelleme kapalı): ayarlar sunucuda http://127.0.0.1:8765"
       echo "  Telefonu bağlamak için: 1) APK: GitHub deponda Actions > build-apk > homelab-panel-apk (HomeLab Panel) indirip telefona kur."
       echo "  2a) USB: telefonda Geliştirici seçenekleri > USB hata ayıklama açık, kabloyu sunucuya tak, telefondaki 'Bu bilgisayara izin ver' sorusunu onayla (adb kurulu; yeniden girişten sonra aktif)."
@@ -1257,7 +1254,7 @@ else
   echo "DURUM: Seçilen kurulum adımları tamamlandı."
 fi
 echo "Yerel web sayfası (sunucuda): http://127.0.0.1:8088"
-if [[ "${PHONEBOX_OK:-no}" == yes ]]; then echo "HomeLab ayarları (sunucuda): http://127.0.0.1:8765"; fi
+if [[ "${HOMELAB_OK:-no}" == yes ]]; then echo "HomeLab ayarları (sunucuda): http://127.0.0.1:8765"; fi
 echo "Panel (yalnızca sunucu): http://127.0.0.1:8000"
 echo "Dockge       : http://$SERVER_IP:5001"
 echo "Beszel       : http://$SERVER_IP:8090"
