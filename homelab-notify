@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Usage: homelab-notify "Title" "Message" [priority 1-5] [tag,tag]
+# The notification is sent to ntfy and (if installed) to the HomeLab phone panel. Exits silently if neither is configured.
+# Exit code: 0 if at least one channel was reached (or there are no channels at all).
+set -uo pipefail
+# Language: read from the installer's saved choice; never prompts (runs from systemd timers).
+HL_LANG="$(head -c 2 /etc/homelab-installer/lang 2>/dev/null || true)"
+case "$HL_LANG" in tr|en) ;; *) HL_LANG=en ;; esac
+T() { if [[ "$HL_LANG" == tr ]]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
+CONF=/etc/homelab-installer/ntfy.env
+TITLE="${1:-HomeLab}"; MSG="${2:-}"; PRIO="${3:-3}"; TAGS="${4:-}"
+[[ -n "$MSG" ]] || exit 0
+[[ "$PRIO" =~ ^[1-5]$ ]] || PRIO=3
+
+CHANNELS=0; DELIVERED=0
+
+# HomeLab agent: local push API (127.0.0.1:8765, no key); skipped if the agent is not running.
+if curl -fsS --max-time 2 http://127.0.0.1:8765/api/info >/dev/null 2>&1; then
+  CHANNELS=$((CHANNELS + 1))
+  LEVEL=""
+  (( PRIO >= 4 )) && LEVEL=warn
+  (( PRIO >= 5 )) && LEVEL=error
+  [[ ",$TAGS," == *,white_check_mark,* || ",$TAGS," == *,tada,* ]] && LEVEL=ok
+  if BODY="$(python3 -c 'import json,sys; d={"title":sys.argv[1],"text":sys.argv[2]}
+if sys.argv[3]: d["level"]=sys.argv[3]; d["vibrate"]=(sys.argv[3] in ("warn","error"))
+print(json.dumps(d))' "$TITLE" "$MSG" "$LEVEL")" \
+    && curl -fsS --max-time 3 -H "Content-Type: application/json" -d "$BODY" http://127.0.0.1:8765/api/notify >/dev/null 2>&1; then
+    DELIVERED=$((DELIVERED + 1))
+  fi
+fi
+
+# ntfy
+if [[ -r "$CONF" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONF"
+  CHANNELS=$((CHANNELS + 1))
+  if PAYLOAD="$(python3 -c 'import json,sys; print(json.dumps({"topic":sys.argv[1],"title":sys.argv[2],"message":sys.argv[3],"priority":int(sys.argv[4]),"tags":[t for t in sys.argv[5].split(",") if t]}))' \
+    "$NTFY_TOPIC" "$TITLE" "$MSG" "$PRIO" "$TAGS")" \
+    && curl -fsS --max-time 10 -K - -H "Content-Type: application/json" -d "$PAYLOAD" "$NTFY_URL" >/dev/null <<CURLCFG
+user = "${NTFY_USER}:${NTFY_PASSWORD}"
+CURLCFG
+  then
+    DELIVERED=$((DELIVERED + 1))
+  else
+    echo "$(T 'ntfy bildirimi gönderilemedi.' 'Could not send the ntfy notification.')" >&2
+  fi
+fi
+
+(( CHANNELS == 0 )) && exit 0
+(( DELIVERED > 0 )) && exit 0
+exit 1
