@@ -224,7 +224,11 @@ if [[ -f "$SCRIPT_DIR/homelab-haos" ]]; then
 fi
 
 # Attach Zigbee/Z-Wave/Thread adapters that are already plugged in (none is fine; more can be added later with: sudo homelab-haos usb auto)
-[[ -x /usr/local/sbin/homelab-haos ]] && sudo /usr/local/sbin/homelab-haos usb auto 2>/dev/null || true
+if [[ -x /usr/local/sbin/homelab-haos ]]; then
+  USB_OUT="$(sudo /usr/local/sbin/homelab-haos usb auto 2>/dev/null || true)"
+  grep '^attached ' <<<"$USB_OUT" | sed 's/^/  /' || true
+  [[ "$USB_OUT" == *"0 adapter(s)"* || -z "$USB_OUT" ]] && echo "  $(T 'Takılı Zigbee/Matter USB adaptörü bulunmadı (sonradan: sudo homelab-haos usb auto).' 'No Zigbee/Matter USB adapter found (later: sudo homelab-haos usb auto).')"
+fi
 
 # Wait (up to ~4 min) for the first boot to get an address; it is normal for Home Assistant to need 10-20 more minutes to finish its first start.
 UP=no

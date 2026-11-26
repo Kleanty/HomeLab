@@ -63,7 +63,7 @@ systemctl --user is-active homelab-agent.service 2>/dev/null || echo "$(T 'HomeL
 echo
 echo "$(T '--- Home Assistant sanal makinesi (KVM) ---' '--- Home Assistant virtual machine (KVM) ---')"
 if [[ -e /dev/kvm ]]; then echo "/dev/kvm: OK"; else echo "/dev/kvm: $(T 'YOK (BIOS/UEFI içinde Intel VT-x / AMD-V açık mı?)' 'MISSING (is Intel VT-x / AMD-V enabled in BIOS/UEFI?)')"; fi
-if [[ -x /usr/local/sbin/homelab-haos ]]; then sudo /usr/local/sbin/homelab-haos status 2>&1 || true; else cat /var/lib/homelab-installer/haos.status 2>/dev/null || echo "$(T 'Kurulu değil.' 'Not installed.')"; fi
+if [[ -x /usr/local/sbin/homelab-haos ]]; then sudo /usr/local/sbin/homelab-haos status 2>&1 || true; else sudo cat /var/lib/homelab-installer/haos.status 2>/dev/null || echo "$(T 'Kurulu değil.' 'Not installed.')"; fi
 systemctl is-active homelab-ha-forward.service 2>/dev/null || true
 curl -fsS --max-time 2 http://127.0.0.1:8765/api/info >/dev/null 2>&1 && echo "$(T 'HomeLab ajanı yanıt veriyor (8765).' 'The HomeLab agent is responding (8765).')" || echo "$(T 'HomeLab ajanı yanıt vermiyor.' 'The HomeLab agent is not responding.')"
 
