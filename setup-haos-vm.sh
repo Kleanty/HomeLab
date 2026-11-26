@@ -119,19 +119,36 @@ if ! sudo virsh dominfo "$VM" >/dev/null 2>&1; then
   WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
   echo "$(T '  Resmi Home Assistant OS imajı aranıyor...' '  Looking up the official Home Assistant OS image...')"
   REL="$WORK/release.json"
-  curl -fsSL --max-time 30 https://api.github.com/repos/home-assistant/operating-system/releases/latest -o "$REL" 2>/dev/null || fail "$(T 'GitHub sürüm bilgisi alınamadı (internet?)' 'could not read the release info from GitHub (internet?)')"
-  mapfile -t META < <(python3 -I - "$REL" "$HAOS_ARCH" <<'PY'
-import json, sys
-d = json.load(open(sys.argv[1])); arch = sys.argv[2]
-want = "haos_ova-" if arch == "x86-64" else "haos_generic-aarch64-"
-for a in d.get("assets", []):
-    n = a.get("name", "")
-    if n.startswith(want) and n.endswith(".qcow2.xz"):
-        print(a["browser_download_url"]); print((a.get("digest") or "").replace("sha256:", "")); print(d.get("tag_name", "")); break
+  REPO_URL=https://github.com/home-assistant/operating-system/releases
+  URL=""; SHA=""; VERSION=""
+  case "$HAOS_ARCH" in x86-64) NAME_PREFIX="haos_ova-" ;; *) NAME_PREFIX="haos_generic-aarch64-" ;; esac
+  # Way 1 (no API limits): the "latest" page redirects to the newest tag; the file name is predictable (haos_ova-<tag>.qcow2.xz).
+  LATEST_URL="$(curl -fsSL --max-time 30 -o /dev/null -w '%{url_effective}' "$REPO_URL/latest" 2>/dev/null || true)"
+  TAG="${LATEST_URL##*/}"
+  if [[ "$TAG" =~ ^[0-9][0-9A-Za-z.\-]*$ ]]; then
+    CAND="$REPO_URL/download/$TAG/${NAME_PREFIX}${TAG}.qcow2.xz"
+    if curl -fsSL --max-time 30 -r 0-0 -o /dev/null "$CAND" 2>/dev/null; then URL="$CAND"; VERSION="$TAG"; fi
+  fi
+  # Way 2: the GitHub API (also gives the SHA-256 when GitHub publishes it)
+  if curl -fsSL --max-time 30 https://api.github.com/repos/home-assistant/operating-system/releases/latest -o "$REL" 2>/dev/null; then
+    mapfile -t META < <(python3 -I - "$REL" "$NAME_PREFIX" <<'PY'
+import json, re, sys
+d = json.load(open(sys.argv[1])); prefix = sys.argv[2]
+assets = d.get("assets", [])
+pick = next((a for a in assets if re.fullmatch(re.escape(prefix) + r"[0-9][0-9A-Za-z.\-]*\.qcow2\.xz", a.get("name", ""))), None)
+if pick:
+    print(pick["browser_download_url"]); print((pick.get("digest") or "").replace("sha256:", "")); print(d.get("tag_name", ""))
+else:
+    print("", file=sys.stderr)
+    print("  assets seen: " + ", ".join(a.get("name", "") for a in assets[:60]) + " " + str(d.get("message", "")), file=sys.stderr)
 PY
 )
-  URL="${META[0]:-}"; SHA="${META[1]:-}"; VERSION="${META[2]:-unknown}"
-  [[ "$URL" == https://github.com/home-assistant/operating-system/releases/download/* ]] || fail "$(T 'uygun Home Assistant OS imajı bulunamadı' 'no suitable Home Assistant OS image was found')"
+    if [[ -n "${META[0]:-}" ]]; then
+      if [[ -z "$URL" || "$URL" == "${META[0]}" ]]; then URL="${META[0]}"; SHA="${META[1]:-}"; VERSION="${META[2]:-$VERSION}"; fi
+    fi
+  fi
+  VERSION="${VERSION:-unknown}"
+  [[ "$URL" == https://github.com/home-assistant/operating-system/releases/download/* ]] || fail "$(T 'uygun Home Assistant OS imajı bulunamadı (GitHub sürüm sayfası/API okunamadı veya dosya adı değişti)' 'no suitable Home Assistant OS image was found (the GitHub release page/API could not be read, or the file name changed)')"
   echo "$(T '  İndiriliyor: ' '  Downloading: ')$VERSION (~400 MB)"
   curl -fL --retry 3 --max-time 1800 -o "$WORK/haos.qcow2.xz" "$URL" 2>/dev/null || fail "$(T 'imaj indirilemedi' 'the image download failed')"
   if [[ -n "$SHA" ]]; then

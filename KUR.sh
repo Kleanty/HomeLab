@@ -747,6 +747,9 @@ services:
       - $BASE/data:/folder
       - $BASE/appdata/filebrowser:/home/filebrowser/data
 EOF
+else
+  # A re-run keeps the existing File Browser data and login; tell the truth about what is configured.
+  if sudo grep -qs '^FILEBROWSER_ADMIN_PASSWORD=' "$STACKS/cloud/filebrowser.env" 2>/dev/null; then FB_LOGIN_SET=yes; fi
 fi
 if [[ ! -f "$STACKS/ai/compose.yaml" ]]; then
 sudo tee "$STACKS/ai/compose.yaml" >/dev/null <<EOF
