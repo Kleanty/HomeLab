@@ -368,12 +368,20 @@ else
     rm -rf "$PB_APP.new"
     cp -R "$PB_TMP/agent" "$PB_APP.new" && mv "$PB_APP.new" "$PB_APP"
     mkdir -p "$(dirname "$PB_UNIT")"
+    # Start the agent with the docker group even before the first re-login (the user was only just added to the group).
+    cat > "$PB_APP/run-agent.sh" <<'EOF_PBRUN'
+#!/bin/sh
+here="$(dirname "$0")"
+if id -nG | tr ' ' '\n' | grep -qx docker || ! getent group docker >/dev/null 2>&1; then exec "$here/HomeLabAgent" "$@"; fi
+exec sg docker -c "exec \"$here/HomeLabAgent\""
+EOF_PBRUN
+    chmod 0755 "$PB_APP/run-agent.sh"
     cat > "$PB_UNIT" <<EOF_PBUNIT
 [Unit]
 Description=$(T 'HomeLab ajanı (telefon paneli ve servis kontrolü)' 'HomeLab agent (phone panel and service control)')
 
 [Service]
-ExecStart="$PB_APP/HomeLabAgent"
+ExecStart="$PB_APP/run-agent.sh"
 Restart=on-failure
 RestartSec=5
 
@@ -1252,7 +1260,7 @@ fi
     echo
     echo "İLK GİRİŞTE hesabı SEN açan servisler (Dockge, Beszel, Uptime Kuma, n8n, AdGuard): kullanıcı adı olarak $ACCOUNT_USER ve aynı parolayı gir."
     echo
-    if [[ -f /var/lib/homelab-installer/haos.status ]]; then
+    if sudo test -f /var/lib/homelab-installer/haos.status; then
       echo
       echo "HOME ASSISTANT (sanal makine): $(sudo /usr/local/sbin/homelab-haos brief 2>/dev/null | cut -d'|' -f2)"
       echo "  Adres (ev ağı): http://$SERVER_IP:8123   (ilk açılış 10-20 dk sürebilir; hesabı sen oluşturursun: $ACCOUNT_USER + aynı parola önerilir)"
@@ -1303,7 +1311,7 @@ fi
     echo
     echo "On FIRST LOGIN to the services where YOU create the account (Dockge, Beszel, Uptime Kuma, n8n, AdGuard): enter $ACCOUNT_USER as the username and the same password."
     echo
-    if [[ -f /var/lib/homelab-installer/haos.status ]]; then
+    if sudo test -f /var/lib/homelab-installer/haos.status; then
       echo
       echo "HOME ASSISTANT (virtual machine): $(sudo /usr/local/sbin/homelab-haos brief 2>/dev/null | cut -d'|' -f2)"
       echo "  Address (home network): http://$SERVER_IP:8123   (first start can take 10-20 min; you create the account yourself: $ACCOUNT_USER + the same password is recommended)"
@@ -1335,6 +1343,9 @@ echo "$(T '[12/12] Son durum ve erişim bilgileri' '[12/12] Final status and acc
 echo
 if [[ $HL_LANG == tr ]]; then
 echo "================ KURULUM TAMAMLANDI ================"
+if ! id -nG | tr " " "\n" | grep -qx docker; then
+  echo "$(T '>>> ÖNEMLİ: Bu bilgisayarı ŞİMDİ YENİDEN BAŞLAT. Telefon panelindeki Servisler sayfası (Docker) yeniden başlatmadan çalışmaz.' '>>> IMPORTANT: RESTART this computer NOW. The Services page on the phone panel (Docker) does not work until you restart.')"
+fi
 echo "Kurulum günlüğü: $LOG_FILE"
 if ((${#INSTALL_WARNINGS[@]})); then
   echo "DURUM: Ana kurulum tamamlandı ancak isteğe bağlı bazı bileşenler kurulamadı."
@@ -1384,6 +1395,9 @@ echo "Cloudflare/DNS/router ayarlarına dokunulmadı."
 echo "ÖNEMLİ: Router'da servis portlarını internete yönlendirme."
 else
 echo "================ INSTALLATION COMPLETE ================"
+if ! id -nG | tr " " "\n" | grep -qx docker; then
+  echo "$(T '>>> ÖNEMLİ: Bu bilgisayarı ŞİMDİ YENİDEN BAŞLAT. Telefon panelindeki Servisler sayfası (Docker) yeniden başlatmadan çalışmaz.' '>>> IMPORTANT: RESTART this computer NOW. The Services page on the phone panel (Docker) does not work until you restart.')"
+fi
 echo "Installation log: $LOG_FILE"
 if ((${#INSTALL_WARNINGS[@]})); then
   echo "STATUS: The main installation finished, but some optional components could not be installed."
