@@ -62,8 +62,8 @@ VM_RAM="${HAOS_RAM_MB:-$AUTO_RAM}"; VM_CPU="${HAOS_VCPUS:-$AUTO_CPU}"; VM_DISK_G
 
 # ---- 2. Packages ---------------------------------------------------------------------------------------------------
 echo "$(T '  KVM/libvirt paketleri kuruluyor...' '  Installing KVM/libvirt packages...')"
-PKGS=(qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients virtinst ovmf xz-utils socat curl python3 usbutils)
-[[ "$HAOS_ARCH" == aarch64 ]] && PKGS=(qemu-system-arm qemu-utils libvirt-daemon-system libvirt-clients virtinst qemu-efi-aarch64 xz-utils socat curl python3 usbutils)
+PKGS=(qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients virtinst ovmf xz-utils socat curl python3 usbutils dnsmasq-base iptables)
+[[ "$HAOS_ARCH" == aarch64 ]] && PKGS=(qemu-system-arm qemu-utils libvirt-daemon-system libvirt-clients virtinst qemu-efi-aarch64 xz-utils socat curl python3 usbutils dnsmasq-base iptables)
 sudo env DEBIAN_FRONTEND=noninteractive apt-get -y -qq install "${PKGS[@]}" >/dev/null 2>&1 || fail "$(T 'KVM paketleri kurulamadı (apt)' 'could not install the KVM packages (apt)')"
 sudo modprobe kvm 2>/dev/null || true
 sudo modprobe kvm_intel 2>/dev/null || sudo modprobe kvm_amd 2>/dev/null || true
@@ -77,10 +77,21 @@ sudo virsh list >/dev/null 2>&1 || fail "$(T 'libvirt çalışmıyor (sudo syste
 # default NAT network (192.168.122.0/24) with a fixed address for Home Assistant
 sudo virsh net-info default >/dev/null 2>&1 || { [[ -f /usr/share/libvirt/networks/default.xml ]] && sudo virsh net-define /usr/share/libvirt/networks/default.xml >/dev/null 2>&1; }
 sudo virsh net-autostart default >/dev/null 2>&1 || true
-sudo virsh net-start default >/dev/null 2>&1 || true
-sudo virsh net-info default 2>/dev/null | grep -q 'Active:.*yes' || fail "$(T 'libvirt "default" ağı başlatılamadı' 'could not start the libvirt "default" network')"
-if ! sudo virsh net-dumpxml default | grep -q "$VM_MAC"; then
-  if sudo virsh net-dumpxml default | grep -q "address='192.168.122.1'"; then
+# Note: read the output first; piping into 'grep -q' fails under 'pipefail' (SIGPIPE) even when the text matches.
+net_active() { local o; o="$(sudo virsh net-info default 2>/dev/null)"; [[ "$o" =~ Active:[[:space:]]+yes ]]; }
+NET_ERR=""
+for _ in 1 2 3 4 5 6; do
+  net_active && { NET_ERR=""; break; }
+  NET_ERR="$(sudo virsh net-start default 2>&1 | head -n 3 | tr '\n' ' ')"
+  sleep 3
+done
+if ! net_active; then
+  echo "  libvirt: ${NET_ERR:-no error text}" >&2
+  fail "$(T "libvirt \"default\" ağı başlatılamadı: ${NET_ERR:-ayrıntı yok} (dene: sudo virsh net-start default)" "could not start the libvirt \"default\" network: ${NET_ERR:-no details} (try: sudo virsh net-start default)")"
+fi
+NET_XML="$(sudo virsh net-dumpxml default 2>/dev/null)"
+if [[ "$NET_XML" != *"$VM_MAC"* ]]; then
+  if [[ "$NET_XML" == *"address='192.168.122.1'"* ]]; then
     sudo virsh net-update default add ip-dhcp-host "<host mac='$VM_MAC' name='$VM' ip='$VM_IP'/>" --live --config >/dev/null 2>&1 || VM_IP=""
   else VM_IP=""; fi
 fi

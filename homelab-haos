@@ -95,10 +95,10 @@ case "$cmd" in
         rc=$?; rm -f "$f"; exit $rc ;;
       auto)  # attach every connected device that matches the known radio list and is not attached yet
         installed || { echo "VM not installed" >&2; exit 3; }
-        n=0
+        n=0; USB_NOW="$(list_usb)"; VM_XML="$(virsh dumpxml "$VM" 2>/dev/null)"
         for id in $KNOWN; do
-          list_usb | grep -qi "^$id|" || continue
-          virsh dumpxml "$VM" | grep -qi "vendor id='0x${id%%:*}'" && virsh dumpxml "$VM" | grep -qi "product id='0x${id##*:}'" && continue
+          [[ "$USB_NOW" == *"${id,,}|"* || "$USB_NOW" == *"${id^^}|"* ]] || continue
+          [[ "${VM_XML,,}" == *"vendor id='0x${id%%:*}'"* && "${VM_XML,,}" == *"product id='0x${id##*:}'"* ]] && continue
           f="$(mktemp)"; xml_for "$id" > "$f"
           if virsh attach-device "$VM" "$f" --live --config >/dev/null 2>&1; then echo "attached $id"; n=$((n+1)); else echo "could not attach $id" >&2; fi
           rm -f "$f"

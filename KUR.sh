@@ -473,9 +473,12 @@ if os.environ.get("PB_NEW") == "yes":
     ]
     cfg["shortcuts"] = [x for x in cfg.get("shortcuts", []) if x.get("id") != "spotify"]
 shortcuts = cfg.setdefault("shortcuts", [])
-for sid, label, icon, arg in (("ha-start", "Home Assistant: start VM", "▶️", "start"), ("ha-stop", "Home Assistant: stop VM", "⏹️", "stop")):
-    if not any(x.get("id") == sid for x in shortcuts):
-        shortcuts.append({"id": sid, "label": label, "icon": icon, "color": "#2dd4bf", "cmd": "sudo", "args": "-n /usr/local/sbin/homelab-haos " + arg})
+for sid, label, icon, color, arg in (("ha-start", "Home Assistant: start VM", "\U0001F3E0", "#22c55e", "start"), ("ha-stop", "Home Assistant: stop VM", "\U0001F50C", "#ef4444", "stop")):
+    cur = next((x for x in shortcuts if x.get("id") == sid), None)
+    if cur is None:
+        cur = {"id": sid, "label": label, "cmd": "sudo", "args": "-n /usr/local/sbin/homelab-haos " + arg}
+        shortcuts.append(cur)
+    cur["icon"], cur["color"] = icon, color  # same colorful style as the other shortcuts
 headers = {"Content-Type": "application/json", **auth}
 if version:
     headers["X-Config-Version"] = version
