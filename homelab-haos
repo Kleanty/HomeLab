@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# homelab-haos - manage the Home Assistant OS virtual machine (libvirt/KVM).
+# Usage: sudo homelab-haos status|brief|start|stop|restart|ip|backup
+# Installed to /usr/local/sbin by setup-haos-vm.sh. The phone panel shortcuts call it through a narrow sudoers rule.
+set -uo pipefail
+VM=homeassistant
+STATE_DIR=/var/lib/homelab-installer
+STATUS_FILE="$STATE_DIR/haos.status"
+DESIRED="$STATE_DIR/haos.desired"           # contains "stopped" when the owner stopped the VM on purpose
+BACKUP_DIR=/srv/homelab/backups/haos
+export LIBVIRT_DEFAULT_URI=qemu:///system
+[[ $(id -u) -eq 0 ]] || { exec sudo -n "$0" "$@"; }
+
+state() { virsh domstate "$VM" 2>/dev/null | head -n 1 || true; }
+installed() { virsh dominfo "$VM" >/dev/null 2>&1; }
+ip_of() {
+  local ip
+  ip="$(virsh domifaddr "$VM" --source lease 2>/dev/null | awk '/ipv4/ {sub("/.*","",$4); print $4; exit}')"
+  [[ -z "$ip" ]] && ip="$(awk -F= '$1=="vm_ip" {print $2}' "$STATUS_FILE" 2>/dev/null)"
+  printf '%s' "$ip"
+}
+status_value() { awk -F= -v k="$1" '$1==k {print substr($0, index($0,"=")+1)}' "$STATUS_FILE" 2>/dev/null | head -n 1; }
+
+cmd="${1:-status}"
+case "$cmd" in
+  status)
+    if ! installed; then
+      echo "Home Assistant VM: not installed"
+      [[ -f "$STATUS_FILE" ]] && sed 's/^/  /' "$STATUS_FILE"
+      exit 3
+    fi
+    echo "Home Assistant VM: $(state)"
+    echo "  address: http://$(ip_of):8123 (inside this computer) / http://<this-computer-LAN-IP>:8123 (home network)"
+    virsh dominfo "$VM" | grep -E 'CPU\(s\)|Max memory|Autostart' | sed 's/^/  /'
+    ;;
+  brief)  # one line for the phone panel: LEVEL|text   (LEVEL = ok, warn, error or empty)
+    if ! installed; then
+      reason="$(status_value reason)"
+      case "$(status_value state)" in
+        skipped) echo "warn|Not available: ${reason:-see install log}" ;;
+        failed) echo "error|Setup failed: ${reason:-see install log}" ;;
+        *) echo "|Not installed" ;;
+      esac
+      exit 0
+    fi
+    s="$(state)"
+    case "$s" in
+      running) echo "ok|Running ($(ip_of))" ;;
+      "shut off") if [[ "$(cat "$DESIRED" 2>/dev/null)" == stopped ]]; then echo "warn|Stopped"; else echo "error|Stopped (should be running)"; fi ;;
+      *) echo "warn|${s:-Unknown}" ;;
+    esac
+    ;;
+  start)   installed || { echo "VM not installed" >&2; exit 3; }; rm -f "$DESIRED"; [[ "$(state)" == running ]] || virsh start "$VM" ;;
+  stop)    installed || { echo "VM not installed" >&2; exit 3; }; echo stopped > "$DESIRED"; virsh shutdown "$VM" >/dev/null 2>&1 || true
+           for _ in $(seq 1 30); do [[ "$(state)" == running ]] || exit 0; sleep 2; done
+           echo "The VM did not shut down in 60 s; run 'sudo virsh destroy $VM' to force it." >&2; exit 1 ;;
+  restart) installed || { echo "VM not installed" >&2; exit 3; }; rm -f "$DESIRED"; virsh reboot "$VM" ;;
+  ip)      ip_of; echo ;;
+  backup)  # cold copy of the VM disk (the VM is shut down for the copy). Home Assistant's own backups (Settings > System > Backups) are the better routine.
+    installed || { echo "VM not installed" >&2; exit 3; }
+    disk="$(status_value disk)"; [[ -f "$disk" ]] || { echo "VM disk not found" >&2; exit 1; }
+    install -d -m 0700 "$BACKUP_DIR"
+    need=$(( $(stat -c %s "$disk") / 1048576 + 1024 ))
+    avail=$(df -Pm "$BACKUP_DIR" | awk 'NR==2 {print $4}')
+    ((avail > need)) || { echo "Not enough free space in $BACKUP_DIR (need about $need MB)." >&2; exit 1; }
+    was="$(state)"
+    [[ "$was" == running ]] && { virsh shutdown "$VM" >/dev/null; for _ in $(seq 1 60); do [[ "$(state)" == running ]] || break; sleep 2; done; }
+    [[ "$(state)" == running ]] && { echo "Could not shut the VM down; backup aborted." >&2; exit 1; }
+    out="$BACKUP_DIR/haos-$(date +%Y%m%d-%H%M%S).qcow2"
+    cp --sparse=always "$disk" "$out" && chmod 600 "$out" && echo "Backup written: $out"
+    rc=$?
+    [[ "$was" == running ]] && virsh start "$VM" >/dev/null
+    ls -1t "$BACKUP_DIR"/haos-*.qcow2 2>/dev/null | tail -n +4 | xargs -r rm -f   # keep the newest 3
+    exit $rc ;;
+  usb)  # generic USB pass-through for any computer: usb list | usb attach <vendor:product> | usb detach <vendor:product> | usb auto
+    sub="${2:-list}"
+    # Common Zigbee / Z-Wave / Thread / Matter radio chips and sticks (vendor:product). Anything else can still be attached by id.
+    KNOWN="10c4:ea60 10c4:8a2a 1a86:7523 1a86:55d4 0403:6015 0403:6001 1cf1:0030 1cf1:0031 0658:0200 0658:0280 1915:520f 1915:c00a 303a:4001 303a:1001 0451:16a8 1d50:6089 0471:0155"
+    list_usb() { lsusb 2>/dev/null | awk '{id=$6; $1=$2=$3=$4=$5=$6=""; sub(/^ +/,""); print id "|" $0}'; }
+    xml_for() { printf "<hostdev mode='subsystem' type='usb' managed='yes'><source><vendor id='0x%s'/><product id='0x%s'/></source></hostdev>" "${1%%:*}" "${1##*:}"; }
+    valid_id() { [[ "$1" =~ ^[0-9a-fA-F]{4}:[0-9a-fA-F]{4}$ ]]; }
+    case "$sub" in
+      list)
+        command -v lsusb >/dev/null 2>&1 || { echo "lsusb missing: sudo apt install usbutils" >&2; exit 1; }
+        list_usb | while IFS='|' read -r id name; do
+          mark=" "; case " $KNOWN " in *" $id "*) mark="*" ;; esac
+          printf '%s %s  %s\n' "$mark" "$id" "$name"
+        done
+        echo "(* = looks like a Zigbee/Z-Wave/Thread adapter. Attach with: sudo homelab-haos usb attach <id>)" ;;
+      attach|detach)
+        installed || { echo "VM not installed" >&2; exit 3; }
+        id="${3:-}"; valid_id "$id" || { echo "Usage: sudo homelab-haos usb $sub <vendor:product>   (see: usb list)" >&2; exit 2; }
+        f="$(mktemp)"; xml_for "$id" > "$f"
+        if [[ "$sub" == attach ]]; then virsh attach-device "$VM" "$f" --live --config; else virsh detach-device "$VM" "$f" --live --config; fi
+        rc=$?; rm -f "$f"; exit $rc ;;
+      auto)  # attach every connected device that matches the known radio list and is not attached yet
+        installed || { echo "VM not installed" >&2; exit 3; }
+        n=0
+        for id in $KNOWN; do
+          list_usb | grep -qi "^$id|" || continue
+          virsh dumpxml "$VM" | grep -qi "vendor id='0x${id%%:*}'" && virsh dumpxml "$VM" | grep -qi "product id='0x${id##*:}'" && continue
+          f="$(mktemp)"; xml_for "$id" > "$f"
+          if virsh attach-device "$VM" "$f" --live --config >/dev/null 2>&1; then echo "attached $id"; n=$((n+1)); else echo "could not attach $id" >&2; fi
+          rm -f "$f"
+        done
+        echo "$n adapter(s) attached." ;;
+      *) echo "Usage: sudo homelab-haos usb list|attach <id>|detach <id>|auto" >&2; exit 2 ;;
+    esac ;;
+  *) echo "Usage: sudo homelab-haos status|brief|start|stop|restart|ip|backup|usb" >&2; exit 2 ;;
+esac

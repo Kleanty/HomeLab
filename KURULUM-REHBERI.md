@@ -20,7 +20,7 @@ Bu kılavuz, **boş/yeni bir bilgisayara Linux Mint kurduktan sonra** HomeLab pa
 - HomeLab ayar sayfası girişi için kullanıcı adı ve **en az 14 karakterli** güçlü parola.
 - Kullanacağın bir kullanıcı adı ve parola (Samba dahil hepsinde aynı parola).
 - Restic otomatik yedekleme isteniyorsa, sistem diskinden ayrı bir harici disk. Yedekleme kurulumu ertelenebilir.
-- Kurulum başında önce **Language / Dil** (English veya Türkçe) sorulur; seçim tüm kurulum mesajları, bildirimler ve yardımcı betikler için kullanılır. Sonra bir kullanıcı adı ve bir parola sorulur. Parola iki kez girilir; yanlışsa tekrar sorulur. Başka evet/hayır sorusu yoktur.
+- Kurulum varsayılan olarak İngilizcedir (Türkçe mesajlar için `HL_LANG=tr bash KUR.sh`). Bir kullanıcı adı ve bir parola sorulur; parola iki kez girilir, yanlışsa tekrar sorulur. Tek evet/hayır sorusu: Home Assistant VM kurulsun mu (varsayılan evet; `HL_HAOS=no` atlar).
 
 > Temiz kurulum hedefi seçildiği için mevcut sistem verileri korunacak bir güncelleme senaryosu yoktur. Linux Mint kurulumunda yanlış diski seçmek o diskteki verileri silebilir.
 
@@ -61,7 +61,7 @@ chmod +x KUR.sh
 
 ## 4. Kurulum sırasında sorulacak seçimler
 
-**Kurulum başında sorulanlar:** dil (Language / Dil: English veya Türkçe), kullanıcı adı (boş bırakırsan Linux hesap adın; yalnızca harf, rakam, `.` `_` `@` `-`) ve parola (en az 14 karakter, iki kez). Aynı bilgiler ayar sayfası girişi, RustDesk, ntfy ve Syncthing'e; parola ayrıca Samba'ya (kullanıcı adı Linux hesabı) uygulanır. Dockge, Beszel, Uptime Kuma, n8n ve AdGuard'ın ilk hesabını sen aynı bilgilerle açarsın. File Browser'ın ilk parolası rastgeledir (özet dosyasında).
+**Kurulum başında sorulanlar:** (önce dil: 1 English, 2 Türkçe, Enter = İngilizce; `HL_LANG=tr bash KUR.sh` soruyu atlar) kullanıcı adı (boş bırakırsan Linux hesap adın; yalnızca harf, rakam, `.` `_` `@` `-`) ve parola (en az 14 karakter, iki kez). Aynı bilgiler ayar sayfası girişi, RustDesk, ntfy ve Syncthing'e; parola ayrıca Samba'ya (kullanıcı adı Linux hesabı) uygulanır. Dockge, Beszel, Uptime Kuma, n8n ve AdGuard'ın ilk hesabını sen aynı bilgilerle açarsın. File Browser'ın ilk parolası rastgeledir (özet dosyasında).
 
 | Bileşen | Nasıl kurulur |
 |---|---|
@@ -92,9 +92,10 @@ Kurulum, aşağıdaki sırayla ilerler. Bir adımda kritik hata oluşursa betik 
 6. **Temel servisler:** Kullanıcı systemd oturumunu açılışta çalışabilecek şekilde ayarlar (linger), Syncthing, SSH, Samba ve mDNS servisini etkinleştirir. Cinnamon güç düğmesi ayarı için önceki değeri kaydetmeye çalışır.
 7. **Dizinler ve Compose tanımları:** `/srv/homelab` altında verileri, uygulama ayarlarını ve Compose dosyalarını hazırlar. Var olan Compose dosyalarının üstüne yazmaz. Dockge, Beszel, Uptime Kuma, File Browser, Ollama+n8n, Scrutiny ve kendi web siten (Caddy) oluşturulur; AdGuard ve Beszel Agent isteğe bağlı/ayrı yapılandırılır.
 8. **Konteynerler ve yerel AI:** Compose dosyaları doğrulanıp başlatılır. Bir stack başlamazsa kurulum durmaz, son ekrandaki uyarı listesine yazılır. RAM'den bağımsız olarak ilk kurulumda `qwen2.5:1.5b-instruct-q4_K_M` indirilir (model dosyası yaklaşık 986 MB, CPU'da çalışır). Yalnızca 2 GiB altı boş depolamada indirme atlanıp uyarı verilir.
-9. **Yardımcı araçlar:** `setup-restic-backup.sh`, `configure-beszel-agent.sh`, `reset-web-login.sh`, `harden-ssh.sh` ve `lang.sh` dosyalarını `/srv/homelab/tools` içine kurar. (HomeLab ajanının kendisi erken adımlarda indirilir, SHA-256 ile doğrulanır ve başlatılır; ayar sayfası girişi hemen ardından `~/.config/HomeLab/web-login` dosyasına PBKDF2 hash olarak yazılır.)
+9. **Yardımcı araçlar:** `setup-restic-backup.sh`, `configure-beszel-agent.sh`, `reset-web-login.sh`, `harden-ssh.sh`, `setup-haos-vm.sh`, `homelab-haos` ve `lang.sh` dosyalarını `/srv/homelab/tools` içine kurar. (HomeLab ajanının kendisi erken adımlarda indirilir, SHA-256 ile doğrulanır ve başlatılır; ayar sayfası girişi hemen ardından `~/.config/HomeLab/web-login` dosyasına PBKDF2 hash olarak yazılır.)
 10. **Samba ve yedekleme:** Samba kullanıcısını aynı parolayla hazırlar ve Restic paketini kurar. Yedek, harici disk gerektirdiğinden `setup-restic-backup.sh` ayrıca çalıştırılır.
-11. **Sonuç:** Servis erişim adreslerini, durum kontrol komutlarını ve güvenlik uyarılarını gösterir. İsteğe bağlı bileşenlerden biri başarısız olduysa ayrı uyarı listeler.
+11. **Home Assistant VM (KVM):** Donanımı denetler, KVM/libvirt kurar, resmi Home Assistant OS imajını indirir, VM'i ve otomatik başlatmayı oluşturur. Kurulumu asla durdurmaz: bilgisayar yapamıyorsa neden özette ve telefon panelinde gösterilir (README, "Home Assistant OS sanal makinesi").
+12. **Sonuç:** Servis erişim adreslerini, durum kontrol komutlarını ve güvenlik uyarılarını gösterir. İsteğe bağlı bileşenlerden biri başarısız olduysa ayrı uyarı listeler.
 
 ## 6. Kurulumun oluşturduğu ana alanlar
 
@@ -212,6 +213,49 @@ Docker konteyneri başlamıyorsa önce `sudo docker ps -a` ve `docker compose ..
 Kurulum; APT paketleri, servisler, Docker konteynerleri, Samba paylaşımı, ayar sayfası girişi ve olası harici Restic deposu gibi farklı alanlarda değişiklik yapar. Hata anında hepsini otomatik kaldırmak, çalışan Docker verisini, daha önceki ayarları veya yedek deposunu silebilir. Bu nedenle betik **otomatik rollback yapmaz**; yapılanları ve hatayı günlüğe kaydeder, veriyi korur. Temiz Linux kurulumu olduğu için çoğu geçici hatada çözüm, hatayı düzeltip `./KUR.sh` dosyasını yeniden çalıştırmaktır. Yalnızca Restic parola/depo adımı yarım kaldıysa önce destek al; dosyaları silerek “temizleme” yapma.
 
 Docker, SSH, Samba veya DNS port çakışmasında hangi sürecin portu kullandığını belirlemeden servisi durdurma veya portu değiştirme.
+
+## Home Assistant OS sanal makinesi (KVM)
+
+HomeLab, **resmi Home Assistant OS**'u Docker servislerinin yanında sanal makine (KVM/QEMU/libvirt) olarak çalıştırabilir. Kurulum başında bir kez sorar ("Home Assistant VM kurulsun mu? [E/h]") ve işi 11. adımda yapar. Sormadan atlamak için `HL_HAOS=no bash KUR.sh`.
+
+**Kurulumun yaptıkları:** donanımı denetler; `qemu`, `libvirt`, `virt-install`, `OVMF` ve `socat` kurar; `home-assistant/operating-system` GitHub sürümlerinden son resmi `haos_ova` imajını indirir (GitHub sağlama toplamı verirse SHA-256 doğrulanır); `homeassistant` VM'ini oluşturur (UEFI, virtio disk, sabit adresli `192.168.122.10` NAT ağı); otomatik başlatmayı açar; VM ağını Docker'ın yanında geçirir (`homelab-libvirt-fw.service`) ve bilgisayarın **8123** portunu yalnızca ev ağı için VM'e yönlendirir (`homelab-ha-forward.service`).
+
+**Otomatik boyutlandırma (`HAOS_RAM_MB`, `HAOS_VCPUS`, `HAOS_DISK_GB` ile değiştirilir):**
+
+| Bilgisayar | VM belleği | VM işlemcisi | VM diski |
+|---|---|---|---|
+| 6 GB altı RAM | oluşturulmaz (neden gösterilir) | - | - |
+| 6-8 GB RAM (örn. 8 GB sunucu) | 2 GB | 1-2 | 32 GB |
+| 9-16 GB RAM | 4 GB | 2-4 | 32 GB |
+| 16 GB üstü RAM | 6 GB | 2-4 | 32 GB |
+
+**VM oluşturulamazsa** kurulum **başarısız olmaz**. Neden `/var/lib/homelab-installer/haos.status` dosyasına yazılır, son özette listelenir ve telefon panelindeki "Home Assistant" satırında görünür. Tipik nedenler: BIOS/UEFI'de sanallaştırma kapalı (*Intel VT-x* / *AMD-V / SVM Mode* aç), bilgisayarın kendisi sanal makine, 6 GB'dan az RAM, 40 GB'dan az boş disk veya internet yok. Alternatifler: Home Assistant Container'ı Docker'da çalıştırmak (`ghcr.io/home-assistant/home-assistant:stable`, host ağı, eklenti yok) ya da ayrı küçük bir bilgisayarda Home Assistant OS. Nedeni giderdikten sonra `bash /srv/homelab/tools/setup-haos-vm.sh` komutunu tekrar çalıştır (tekrarı güvenlidir; var olan VM yeniden oluşturulmaz).
+
+**Kullanım:** ev ağından `http://<sunucu-IP>:8123` adresini aç ve sahip hesabını kendin oluştur (HomeLab'ın geri kalanıyla aynı kullanıcı adı ve parola önerilir). İlk açılış 10-20 dakika sürebilir. VM'i `sudo homelab-haos status|start|stop|restart|backup` ile yönet; telefon paneli durumunu Home sayfasında gösterir ve Kısayollar'da *Home Assistant: start VM / stop VM* tuşları vardır. Varlıkları panelden kontrol etmek için Home Assistant'ta uzun ömürlü erişim jetonu oluştur; adresi ve jetonu HomeLab ayar sayfasına (`http://127.0.0.1:8765`, Home Assistant bölümü) gir (mevcut mekanizma kullanılır, ikinci bir mekanizma yoktur).
+
+**Zigbee / Matter / Thread / ESPHome:** altyapı hazırdır ama henüz cihazın olmadığı için hiçbir şey yapılandırılmaz. USB adaptör (örn. Zigbee veya Thread çubuğu) taktığında `sudo homelab-haos usb list` çalıştır (Zigbee/Z-Wave/Thread çubuğuna benzeyenler `*` ile işaretlenir), sonra `sudo homelab-haos usb attach <vendor:product>`; ya da takılı bilinen adaptörlerin hepsini bağlamak için `sudo homelab-haos usb auto`. Her bilgisayarda aynı çalışır ve bağlantı yeniden başlatmadan sonra da kalır. Sonra Home Assistant içinde *Zigbee Home Automation*, *Matter* veya *Thread* entegrasyonunu ekle; ESPHome, Home Assistant eklentisi olarak kurulabilir.
+
+**Güvenlik:** 8123 portuna yalnızca ev ağından erişilir; **router'da yönlendirme yapma**. Uzaktan erişim için Tailscale kullan. HomeLab router, DNS, Cloudflare veya Tailscale ayarlarına dokunmaz.
+
+**Yedek ve geri yükleme:** en iyi yedek Home Assistant'ın kendi yedeğidir (*Ayarlar > Sistem > Yedeklemeler*; bir kopyayı VM dışında tut). `sudo homelab-haos backup` ayrıca VM diskinin soğuk kopyasını `/srv/homelab/backups/haos` içine alır (son 3 kopya tutulur). Geri yüklemek için: VM'i durdur (`sudo homelab-haos stop`), yedek dosyasını `/var/lib/libvirt/images/haos.qcow2` üzerine kopyala (`sudo cp --sparse=always <yedek> /var/lib/libvirt/images/haos.qcow2`), sonra `sudo homelab-haos start`. Ya da kurulum betiğiyle yeniden kurup Home Assistant yedeğini karşılama ekranından geri yükle.
+
+**Burada test edilmedi:** VM oluşturma yazıldı ve statik denetimden geçti ama geliştirme ortamında (KVM yok) çalıştırılamadı. "Atlandı" yolu test edildi. Kendi donanımında ilk çalıştırma test sayılır; sorun bildirirse `~/HomeLab_Logs/kurulum-*.log` dosyasını gönder.
+
+## USB (ADB) bağlantısı: telefon tarafı kurulumu
+
+Bilgisayar tarafı otomatiktir; ama Android'in bilgisayara bir kez izin vermesi gerekir:
+
+1. **Geliştirici seçenekleri:** Ayarlar > Telefon hakkında > **Yapı numarası**na 7 kez dokun.
+2. Ayarlar > Sistem > Geliştirici seçenekleri > **USB hata ayıklama**yı aç.
+3. USB kabloyu tak ve USB bildiriminde **Dosya aktarımı**nı seç ("Yalnızca şarj" değil).
+4. Telefonda "USB hata ayıklamaya izin verilsin mi?" sorusu çıkar: **Bu bilgisayardan her zaman izin ver**i işaretle ve **İzin ver**e dokun.
+5. Kurulumdan sonra bir kez oturumu kapatıp aç (`plugdev` grubu), sonra `adb devices` çalıştır: durum `device` olmalı.
+
+`adb devices` `unauthorized` gösteriyorsa HomeLab ajanı "telefon bağlı değil, bekleniyor" der (yalnızca `device` sayılır). Çözüm: Geliştirici seçenekleri > **USB hata ayıklama yetkilerini iptal et**, kabloyu çıkar, USB hata ayıklamayı kapat-aç, tekrar tak ve soruyu onayla. Soru çıkmazsa başka kablo veya başka USB modu dene.
+
+## GitHub Pages eşleştirme sayfası: ilk kurulum
+
+`https://kleanty.github.io/HomeLab/pair/` eşleştirme sayfası `.github/workflows/pages.yml` ile yayınlanır. Tek seferlik depo ayarı: **Settings > Pages > Build and deployment > Source: GitHub Actions** ("Deploy from a branch" değil). İş akışının iki işi vardır: `build` (`site/` artifact'ını yükler) ve `deploy` (`build`'e bağlıdır); tek birleşik iş `Found 0 artifact(s)` / `Fetching artifact metadata failed` ile başarısız olabilir. "Pages not enabled" hatası alırsan Source'u ayarla ve iş akışını yeniden çalıştır.
 
 ## 9. Dış erişim ve güvenlik
 

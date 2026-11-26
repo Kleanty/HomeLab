@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Shared language support for every HomeLab script (source this file, do not run it).
-#   HL_LANG = tr | en   (env override > saved choice in /etc/homelab-installer/lang > asked once > en)
+#   HL_LANG = tr | en   (env override, e.g. HL_LANG=tr ./KUR.sh > saved choice in /etc/homelab-installer/lang > en)
 #   T "Türkçe metin" "English text"   prints the text for the selected language (no newline)
 HL_LANG_FILE=/etc/homelab-installer/lang
 
@@ -12,12 +12,6 @@ hl_lang_init() {
   fi
   case "$HL_LANG" in tr|en) return 0 ;; esac
   HL_LANG=en
-  if [[ -t 0 && -t 1 ]]; then
-    local ans=""
-    printf 'Language / Dil:  1) English   2) Türkçe  [1]: '
-    read -r ans || true
-    if [[ "$ans" == 2 || "${ans,,}" == tr* ]]; then HL_LANG="tr"; fi
-  fi
 }
 
 hl_lang_save() {

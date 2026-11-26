@@ -6,6 +6,12 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 if [[ ! -r "$SCRIPT_DIR/lang.sh" ]]; then echo "lang.sh not found next to KUR.sh / lang.sh, KUR.sh dosyasının yanında bulunamadı."; exit 1; fi
 # shellcheck source=lang.sh
 source "$SCRIPT_DIR/lang.sh"
+# Language question (asked only on an interactive terminal when HL_LANG is not set). Enter = English.
+if [[ -z "${HL_LANG:-}" && -t 0 ]]; then
+  echo "Language / Dil:  1) English   2) Türkçe"
+  read -r -p "Choose / Seç [1]: " HL_LANG_ANS
+  case "${HL_LANG_ANS:-1}" in 2|tr|TR|t|T) HL_LANG=tr ;; *) HL_LANG=en ;; esac
+fi
 hl_lang_init
 if [[ $EUID -eq 0 ]]; then echo "$(T 'Bu dosyayı sudo ile değil, normal kullanıcıyla çalıştır: ./KUR.sh' 'Do not run this file with sudo; run it as a normal user: ./KUR.sh')"; exit 1; fi
 USER_NAME="$(id -un)"
@@ -108,6 +114,8 @@ REQUIRED_FILES=(
   "$SCRIPT_DIR/configure-beszel-agent.sh"
   "$SCRIPT_DIR/reset-web-login.sh"
   "$SCRIPT_DIR/harden-ssh.sh"
+  "$SCRIPT_DIR/setup-haos-vm.sh"
+  "$SCRIPT_DIR/homelab-haos"
   "$SCRIPT_DIR/homelab-notify"
   "$SCRIPT_DIR/homelab-health-check"
   "$SCRIPT_DIR/TANI.sh"
@@ -155,6 +163,14 @@ echo "$(T "(Samba, kullanıcı adı olarak Linux hesabını '$USER_NAME' kullan�
 ACCOUNT_USER=""; ACCOUNT_PW=""
 ask_username
 ask_new_password "$(T 'Parola' 'Password')" 14 ACCOUNT_PW
+HAOS_INSTALL=yes
+if [[ "${HL_HAOS:-}" == no ]]; then HAOS_INSTALL=no
+elif [[ -t 0 && -z "${HL_HAOS:-}" ]]; then
+  echo
+  echo "$(T 'İsteğe bağlı: Home Assistant OS sanal makinesi (KVM) kurulsun mu? Akıllı ev için; en az 6 GB RAM ve işlemcide sanallaştırma gerekir. Uygun değilse kurulum bunu atlar ve nedenini panelde gösterir.' 'Optional: set up a Home Assistant OS virtual machine (KVM)? For the smart home; needs at least 6 GB RAM and CPU virtualization. If the computer cannot do it, the installer skips it and shows the reason in the panel.')"
+  read -r -p "$(T 'Home Assistant VM kurulsun mu? [E/h]: ' 'Set up the Home Assistant VM? [Y/n]: ')" HA_ANS
+  case "${HA_ANS:-y}" in n|N|h|H|no|No|NO|hayır|Hayır) HAOS_INSTALL=no ;; esac
+fi
 echo "$(T 'Bilgiler alındı. Kurulum 5 saniye içinde başlıyor (iptal: Ctrl+C)...' 'Details received. Installation starts in 5 seconds (cancel: Ctrl+C)...')"
 sleep 5
 sudo install -d -m 0700 -o root -g root /var/lib/homelab-installer/markers
@@ -180,7 +196,7 @@ done
 sudo install -o root -g root -m 0600 "$PREEXISTING_TMP" /var/lib/homelab-installer/markers/preexisting-packages
 rm -f "$PREEXISTING_TMP"
 
-echo "$(T '[1/11] Sistem paketleri' '[1/11] System packages')"
+echo "$(T '[1/12] Sistem paketleri' '[1/12] System packages')"
 wait_apt_idle
 echo "$(T '  paket listesi güncelleniyor ve paketler kuruluyor (birkaç dakika sürebilir)...' '  updating the package list and installing packages (may take a few minutes)...')"
 quiet_run "${APT_Q[@]}" update
@@ -189,7 +205,7 @@ quiet_run "${APT_Q[@]}" install ca-certificates curl wget gnupg lsb-release \
   restic smartmontools nvme-cli sqlite3 lm-sensors fail2ban \
   pciutils avahi-daemon libnss-mdns
 
-echo "$(T '[1/11] Donanım algılandı' '[1/11] Hardware detected')"
+echo "$(T '[1/12] Donanım algılandı' '[1/12] Hardware detected')"
 echo "$(T 'İşlemci:' 'Processor:')"
 lscpu | grep -E '^(Model name|CPU\(s\)):' | head -n 2 || true
 echo "$(T 'Bellek:' 'Memory:')"
@@ -201,7 +217,7 @@ fi
 
 echo "$(T 'Not: Ekran kartı sürücüsü kurulmaz; Ollama CPU ile çalışır.' 'Note: No graphics driver is installed; Ollama runs on the CPU.')"
 
-echo "$(T '[2/11] Docker Engine ve Compose' '[2/11] Docker Engine and Compose')"
+echo "$(T '[2/12] Docker Engine ve Compose' '[2/12] Docker Engine and Compose')"
 sudo install -m 0755 -d /etc/apt/keyrings
 if [[ ! -s /etc/apt/keyrings/docker.asc ]]; then
   sudo touch /var/lib/homelab-installer/markers/docker-key-created
@@ -250,7 +266,7 @@ else
   echo "$(T 'Mevcut /etc/docker/daemon.json korundu; log rotasyonu elle gözden geçirilmeli.' 'Existing /etc/docker/daemon.json was kept; review log rotation manually.')"
 fi
 
-echo "[3/11] Tailscale"
+echo "[3/12] Tailscale"
 wait_apt_idle
 if [[ ! -e /etc/apt/sources.list.d/tailscale.list ]]; then sudo touch /var/lib/homelab-installer/markers/tailscale-source-created; fi
 if quiet_run bash -c 'set -o pipefail; curl -fsSL https://tailscale.com/install.sh | sh'; then
@@ -262,7 +278,7 @@ else
   INSTALL_WARNINGS+=("$(T 'Tailscale kurulamadı' 'Tailscale could not be installed')")
 fi
 
-echo "$(T '[4/11] RustDesk uzaktan masaüstü' '[4/11] RustDesk remote desktop')"
+echo "$(T '[4/12] RustDesk uzaktan masaüstü' '[4/12] RustDesk remote desktop')"
 RUSTDESK_OK=no
 RUSTDESK_ID=""
 if dpkg-query -W -f='${db:Status-Status}' rustdesk 2>/dev/null | grep -qx installed; then
@@ -432,6 +448,10 @@ if os.environ.get("PB_NEW") == "yes":
         ]},
     ]
     cfg["shortcuts"] = [x for x in cfg.get("shortcuts", []) if x.get("id") != "spotify"]
+shortcuts = cfg.setdefault("shortcuts", [])
+for sid, label, icon, arg in (("ha-start", "Home Assistant: start VM", "▶️", "start"), ("ha-stop", "Home Assistant: stop VM", "⏹️", "stop")):
+    if not any(x.get("id") == sid for x in shortcuts):
+        shortcuts.append({"id": sid, "label": label, "icon": icon, "color": "#2dd4bf", "cmd": "sudo", "args": "-n /usr/local/sbin/homelab-haos " + arg})
 headers = {"Content-Type": "application/json"}
 if os.environ.get("HL_WEB_USER"):  # the settings page login, when one is set (harmless when not)
     import base64
@@ -469,7 +489,7 @@ PY_WEBLOGIN
   fi
 fi
 
-echo "$(T '[5/11] AdGuard Home (yerel DNS)' '[5/11] AdGuard Home (local DNS)')"
+echo "$(T '[5/12] AdGuard Home (yerel DNS)' '[5/12] AdGuard Home (local DNS)')"
 ADGUARD_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')"
 if [[ "$ADGUARD_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] && ip -4 -o addr show | awk '{print $4}' | cut -d/ -f1 | grep -Fxq "$ADGUARD_IP"; then
   ADGUARD_INSTALL=yes
@@ -480,7 +500,7 @@ else
   INSTALL_WARNINGS+=("$(T 'AdGuard için LAN IP bulunamadı, kurulmadı' 'No LAN IP found for AdGuard; it was not installed')")
 fi
 
-echo "$(T '[6/11] Syncthing, temel servisler ve güç düğmesi' '[6/11] Syncthing, core services and power button')"
+echo "$(T '[6/12] Syncthing, temel servisler ve güç düğmesi' '[6/12] Syncthing, core services and power button')"
 if ! sudo test -e /var/lib/homelab-installer/markers/linger-added \
   && ! sudo test -e /var/lib/homelab-installer/markers/linger-preexisting; then
   if [[ "$(sudo loginctl show-user "$USER_NAME" -p Linger --value 2>/dev/null || true)" == yes ]]; then
@@ -495,8 +515,13 @@ for _ in $(seq 1 30); do
   syncthing cli show system >/dev/null 2>&1 && break
   sleep 2
 done
-if syncthing cli config gui user set "$ACCOUNT_USER" >/dev/null 2>&1 \
-  && syncthing cli config gui password set "$ACCOUNT_PW" >/dev/null 2>&1; then
+ST_OK=no
+for _ in 1 2 3 4 5; do
+  if syncthing cli config gui user set "$ACCOUNT_USER" >/dev/null 2>&1 \
+    && syncthing cli config gui password set "$ACCOUNT_PW" >/dev/null 2>&1; then ST_OK=yes; break; fi
+  sleep 3
+done
+if [[ "$ST_OK" == yes ]]; then
   quiet_run sudo systemctl restart "syncthing@${USER_NAME}.service" || true
   echo "$(T 'Syncthing arayüz girişi ayarlandı.' 'Syncthing web UI login was set.')"
 else
@@ -640,7 +665,7 @@ else
   INSTALL_WARNINGS+=("$(T 'unattended-upgrades kurulamadı' 'unattended-upgrades could not be installed')")
 fi
 
-echo "$(T '[7/11] HomeLab klasörleri ve Compose dosyaları' '[7/11] HomeLab folders and Compose files')"
+echo "$(T '[7/12] HomeLab klasörleri ve Compose dosyaları' '[7/12] HomeLab folders and Compose files')"
 sudo mkdir -p "$BASE"/{data/shared,data/documents,data/projects,data/media,backups,tools,web/public,config/caddy,appdata/{ntfy/{cache,lib},dockge,beszel,beszel-agent,uptime-kuma,filebrowser,n8n,ollama,scrutiny/{config,influxdb},caddy/{data,config},adguardhome/{work,conf}},compose/{dockge,monitoring,cloud,ai,storage,web,adguard,monitoring-agent,notify}}
 # Ownership of the Compose files: files that existed before the installation (not ours) are not deleted by KALDIR.sh.
 for STACK_NAME in dockge monitoring cloud ai storage web notify adguard monitoring-agent; do
@@ -695,13 +720,24 @@ services:
     volumes: [$BASE/appdata/uptime-kuma:/app/data]
 EOF
 fi
+FB_LOGIN_SET=no
 if [[ ! -f "$STACKS/cloud/compose.yaml" ]]; then
+# File Browser first-start login = the installation username and password (single quotes keep the value literal for Compose)
+if [[ "$ACCOUNT_PW" != *"'"* && "$ACCOUNT_USER" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  (umask 077; printf "FILEBROWSER_ADMIN_PASSWORD='%s'\n" "$ACCOUNT_PW" | sudo tee "$STACKS/cloud/filebrowser.env" >/dev/null)
+  sudo chmod 600 "$STACKS/cloud/filebrowser.env"
+  printf 'auth:\n  adminUsername: %s\n' "$ACCOUNT_USER" | sudo tee "$BASE/appdata/filebrowser/config.yaml" >/dev/null
+  FB_LOGIN_SET=yes
+else
+  : | sudo tee "$STACKS/cloud/filebrowser.env" >/dev/null
+fi
 sudo tee "$STACKS/cloud/compose.yaml" >/dev/null <<EOF
 services:
   filebrowser:
     image: ghcr.io/gtsteffaniak/filebrowser:stable-slim
     container_name: filebrowser
     restart: unless-stopped
+    env_file: [filebrowser.env]
     ports: ["0.0.0.0:8080:80"]
     volumes:
       - $BASE/data:/folder
@@ -972,7 +1008,7 @@ else
   INSTALL_WARNINGS+=("$(T 'Docker port kilidi (LAN-only) doğrulanamadı: sudo journalctl -u homelab-docker-lan-only' 'Could not verify the Docker port lock (LAN-only): sudo journalctl -u homelab-docker-lan-only')")
 fi
 
-echo "$(T '[8/11] Docker servisleri doğrulanıyor ve başlatılıyor' '[8/11] Validating and starting Docker services')"
+echo "$(T '[8/12] Docker servisleri doğrulanıyor ve başlatılıyor' '[8/12] Validating and starting Docker services')"
 for f in "$STACKS/dockge/compose.yaml" "$STACKS/monitoring/compose.yaml" "$STACKS/cloud/compose.yaml" "$STACKS/ai/compose.yaml" "$STACKS/storage/compose.yaml" "$STACKS/web/compose.yaml" "$STACKS/notify/compose.yaml"; do
   STACK_NAME="$(basename -- "$(dirname -- "$f")")"
   # If one stack fails to start (image could not be pulled, port conflict, etc.), let the rest of the installation finish anyway.
@@ -1100,13 +1136,13 @@ EOF_HEALTH_TIMER
   quiet_run sudo systemctl enable --now homelab-health-check.timer || INSTALL_WARNINGS+=("$(T 'homelab-health-check.timer etkinleştirilemedi' 'Could not enable homelab-health-check.timer')")
 fi
 
-echo "$(T '[9/11] Yardımcı araçlar kuruluyor' '[9/11] Installing helper tools')"
+echo "$(T '[9/12] Yardımcı araçlar kuruluyor' '[9/12] Installing helper tools')"
 sudo mkdir -p "$BASE/tools"
-for TOOL in setup-restic-backup.sh configure-beszel-agent.sh reset-web-login.sh harden-ssh.sh lang.sh; do
+for TOOL in setup-restic-backup.sh configure-beszel-agent.sh reset-web-login.sh harden-ssh.sh setup-haos-vm.sh homelab-haos lang.sh; do
   sudo install -o "$USER_NAME" -g "$(id -gn)" -m 0755 "$SCRIPT_DIR/$TOOL" "$BASE/tools/$TOOL"
 done
 
-echo "$(T '[10/11] Samba ve Restic yedekleme yapılandırması' '[10/11] Samba and Restic backup configuration')"
+echo "$(T '[10/12] Samba ve Restic yedekleme yapılandırması' '[10/12] Samba and Restic backup configuration')"
 printf '%s\n%s\n' "$ACCOUNT_PW" "$ACCOUNT_PW" | sudo smbpasswd -a -s "$USER_NAME" >/dev/null
 echo "$(T "Restic kuruldu. Yedek, harici disk gerektirir; diski bağlayınca: sudo bash $BASE/tools/setup-restic-backup.sh" "Restic installed. Backups need an external disk; once you connect it: sudo bash $BASE/tools/setup-restic-backup.sh")"
 TS_LOGIN_URL=""
@@ -1139,7 +1175,11 @@ if sudo test -f /etc/homelab-installer/ntfy.env; then
   done < <(sudo cat /etc/homelab-installer/ntfy.env)
   NTFY_URL_S="http://$SERVER_IP:2586"
 fi
-FB_PASS="$(sudo docker logs filebrowser 2>&1 | grep -i 'password' | tail -n 1 || true)"
+if [[ "$FB_LOGIN_SET" == yes ]]; then
+  FB_INFO="user: $ACCOUNT_USER   password: same"
+else
+  FB_INFO="user: admin   initial password: sudo docker logs filebrowser 2>&1 | grep -i password"
+fi
 (
   umask 077
   {
@@ -1160,7 +1200,7 @@ FB_PASS="$(sudo docker logs filebrowser 2>&1 | grep -i 'password' | tail -n 1 ||
       echo "  Telefonu bağlamak için: 1) APK: GitHub deponda Actions > build-apk > homelab-panel-apk (HomeLab Panel) indirip telefona kur."
       echo "  2a) USB: telefonda Geliştirici seçenekleri > USB hata ayıklama açık, kabloyu sunucuya tak, telefondaki 'Bu bilgisayara izin ver' sorusunu onayla (adb kurulu; yeniden girişten sonra aktif)."
       echo "  2b) Wi-Fi: sunucuda 127.0.0.1:8765 > Settings > General > Wi-Fi & Tailscale > 'Pair a phone over Wi-Fi' ve QR kodu telefondan okut."
-      echo "  Sayfalar: HomeLab, Servisler (konteynere dokun: başlat/durdur), Uyarılar, Takvim, Ayarlar (titreşim/ses/uyarı penceresi telefonda açılıp kapanır). Kartlara dokununca büyük grafik açılır. Panel açıkken ekran hep açık kalır; telefon yeniden başlarsa uygulamayı elle aç (Android otomatik açmaya izin vermez). Şarjda sürekli açık kalması için: Geliştirici seçenekleri > Şarjdayken uyanık kal."
+      echo "  Sayfalar: HomeLab, Servisler (konteynere dokun: başlat/durdur), Uyarılar, Sistem, İşlemler, Kısayollar. Kartlara dokununca büyük grafik açılır. Panel açıkken ekran hep açık kalır; telefon yeniden başlarsa uygulamayı elle aç (Android otomatik açmaya izin vermez). Şarjda sürekli açık kalması için: Geliştirici seçenekleri > Şarjdayken uyanık kal."
       echo "  Wi-Fi için TCP 8766 yerel ağda açık olmalıdır (UFW kullanılmıyor). Docker sayfasının çalışması için kullanıcın docker grubunda olmalı (yeniden girişten sonra)."
       echo
     fi
@@ -1170,7 +1210,7 @@ FB_PASS="$(sudo docker logs filebrowser 2>&1 | grep -i 'password' | tail -n 1 ||
     echo "  Uptime Kuma  http://$SERVER_IP:3001"
     echo "  Scrutiny     http://$SERVER_IP:8081"
     echo "  Syncthing    http://127.0.0.1:8384   kullanıcı: $ACCOUNT_USER   parola: aynı"
-    echo "  File Browser http://$SERVER_IP:8080   kullanıcı: admin   ${FB_PASS:-ilk parola: sudo docker logs filebrowser 2>&1 | grep -i password}"
+    echo "  File Browser http://$SERVER_IP:8080   $FB_INFO"
     echo "  n8n          http://$SERVER_IP:5678"
     if [[ "$ADGUARD_INSTALL" == yes ]]; then echo "  AdGuard      http://$ADGUARD_IP:3000 (ilk kurulum) / http://$ADGUARD_IP:3002"; fi
     echo "  Samba        \\\\$SERVER_IP\\Paylasim   kullanıcı: $USER_NAME   parola: kurulumda sen belirledin"
@@ -1185,6 +1225,13 @@ FB_PASS="$(sudo docker logs filebrowser 2>&1 | grep -i 'password' | tail -n 1 ||
     echo
     echo "İLK GİRİŞTE hesabı SEN açan servisler (Dockge, Beszel, Uptime Kuma, n8n, AdGuard): kullanıcı adı olarak $ACCOUNT_USER ve aynı parolayı gir."
     echo
+    if [[ -f /var/lib/homelab-installer/haos.status ]]; then
+      echo
+      echo "HOME ASSISTANT (sanal makine): $(sudo /usr/local/sbin/homelab-haos brief 2>/dev/null | cut -d'|' -f2)"
+      echo "  Adres (ev ağı): http://$SERVER_IP:8123   (ilk açılış 10-20 dk sürebilir; hesabı sen oluşturursun: $ACCOUNT_USER + aynı parola önerilir)"
+      echo "  Yönetim: sudo homelab-haos status|start|stop|restart|backup   (telefon panelinde Kısayollar'da da var)"
+      echo "  Yapman gereken: Home Assistant'ı aç, hesabı oluştur; Zigbee/Matter için USB adaptör taktığında VM'e USB aktar (README: Home Assistant)."
+    fi
     echo "Beszel Agent anahtarı: Beszel'de sistem ekleyince çıkar; sonra: bash $BASE/tools/configure-beszel-agent.sh"
     echo "Kurulum günlüğü: $LOG_FILE"
     else
@@ -1204,7 +1251,7 @@ FB_PASS="$(sudo docker logs filebrowser 2>&1 | grep -i 'password' | tail -n 1 ||
       echo "  To connect the phone: 1) APK: in your GitHub repo go to Actions > build-apk > homelab-panel-apk (HomeLab Panel), download it and install it on the phone."
       echo "  2a) USB: on the phone enable Developer options > USB debugging, plug the cable into the server and accept the 'Allow this computer' prompt on the phone (adb is installed; active after you log in again)."
       echo "  2b) Wi-Fi: on the server open 127.0.0.1:8765 > Settings > General > Wi-Fi & Tailscale > 'Pair a phone over Wi-Fi' and scan the QR code with the phone."
-      echo "  Pages: HomeLab, Services (tap a container: start/stop), Alerts, Calendar, Settings (vibration/sound/alert popup can be toggled on the phone). Tapping a card opens a large chart. The screen stays on while the panel is open; if the phone restarts, open the app manually (Android does not allow auto-start). To keep it on while charging: Developer options > Stay awake while charging."
+      echo "  Pages: HomeLab, Services (tap a container: start/stop), Alerts, System, Processes, Shortcuts. Tapping a card opens a large chart. The screen stays on while the panel is open; if the phone restarts, open the app manually (Android does not allow auto-start). To keep it on while charging: Developer options > Stay awake while charging."
       echo "  For Wi-Fi, TCP 8766 must be open on the local network (UFW is not used). For the Docker page to work, your user must be in the docker group (after logging in again)."
       echo
     fi
@@ -1214,7 +1261,7 @@ FB_PASS="$(sudo docker logs filebrowser 2>&1 | grep -i 'password' | tail -n 1 ||
     echo "  Uptime Kuma  http://$SERVER_IP:3001"
     echo "  Scrutiny     http://$SERVER_IP:8081"
     echo "  Syncthing    http://127.0.0.1:8384   user: $ACCOUNT_USER   password: same"
-    echo "  File Browser http://$SERVER_IP:8080   user: admin   ${FB_PASS:-initial password: sudo docker logs filebrowser 2>&1 | grep -i password}"
+    echo "  File Browser http://$SERVER_IP:8080   $FB_INFO"
     echo "  n8n          http://$SERVER_IP:5678"
     if [[ "$ADGUARD_INSTALL" == yes ]]; then echo "  AdGuard      http://$ADGUARD_IP:3000 (first setup) / http://$ADGUARD_IP:3002"; fi
     echo "  Samba        \\\\$SERVER_IP\\Paylasim   user: $USER_NAME   password: the one you chose during setup"
@@ -1229,12 +1276,35 @@ FB_PASS="$(sudo docker logs filebrowser 2>&1 | grep -i 'password' | tail -n 1 ||
     echo
     echo "On FIRST LOGIN to the services where YOU create the account (Dockge, Beszel, Uptime Kuma, n8n, AdGuard): enter $ACCOUNT_USER as the username and the same password."
     echo
+    if [[ -f /var/lib/homelab-installer/haos.status ]]; then
+      echo
+      echo "HOME ASSISTANT (virtual machine): $(sudo /usr/local/sbin/homelab-haos brief 2>/dev/null | cut -d'|' -f2)"
+      echo "  Address (home network): http://$SERVER_IP:8123   (first start can take 10-20 min; you create the account yourself: $ACCOUNT_USER + the same password is recommended)"
+      echo "  Manage: sudo homelab-haos status|start|stop|restart|backup   (also in the phone panel under Shortcuts)"
+      echo "  To do: open Home Assistant and create the account; when you plug in a Zigbee/Matter USB adapter, pass it to the VM (README: Home Assistant)."
+    fi
     echo "Beszel Agent key: it appears when you add a system in Beszel; then: bash $BASE/tools/configure-beszel-agent.sh"
     echo "Installation log: $LOG_FILE"
     fi
   } > "$SUMMARY_FILE"
 )
-echo "$(T '[11/11] Son durum ve erişim bilgileri' '[11/11] Final status and access details')"
+echo "$(T '[11/12] Home Assistant OS sanal makinesi (KVM)' '[11/12] Home Assistant OS virtual machine (KVM)')"
+sudo install -d -m 0755 /var/lib/homelab-installer
+if [[ "$HAOS_INSTALL" == yes ]]; then
+  # never stops the installation: problems are written to the status file and shown in the panel
+  if ! HL_LANG="$HL_LANG" SUDO_USER="$USER_NAME" bash "$BASE/tools/setup-haos-vm.sh" 2>&1 | tee -a "$LOG_FILE"; then
+    INSTALL_WARNINGS+=("$(T 'Home Assistant VM kurulumu hata verdi; günlüğe bak' 'The Home Assistant VM setup reported an error; see the log')")
+  fi
+  HAOS_LINE="$(sudo /usr/local/sbin/homelab-haos brief 2>/dev/null || true)"
+  case "${HAOS_LINE%%|*}" in
+    warn|error) INSTALL_WARNINGS+=("Home Assistant VM: ${HAOS_LINE#*|}") ;;
+  esac
+else
+  echo "$(T 'Home Assistant VM atlandı (seçim). Sonradan: bash '"$BASE"'/tools/setup-haos-vm.sh' 'Home Assistant VM skipped (your choice). Later: bash '"$BASE"'/tools/setup-haos-vm.sh')"
+  printf 'state=skipped\nreason=not selected during setup\n' | sudo tee /var/lib/homelab-installer/haos.status >/dev/null
+fi
+
+echo "$(T '[12/12] Son durum ve erişim bilgileri' '[12/12] Final status and access details')"
 echo
 if [[ $HL_LANG == tr ]]; then
 echo "================ KURULUM TAMAMLANDI ================"
@@ -1273,8 +1343,7 @@ echo "  Dockge       : http://$SERVER_IP:5001  -> yönetici hesabı oluştur"
 echo "  Beszel       : http://$SERVER_IP:8090  -> yönetici hesabı oluştur"
 echo "  Uptime Kuma  : http://$SERVER_IP:3001  -> yönetici hesabı oluştur"
 echo "  n8n          : http://$SERVER_IP:5678  -> sahip (owner) hesabı oluştur"
-echo "  File Browser : kullanıcı 'admin'; ilk parola rastgele üretilir ve günlüğe yazılır:"
-echo "                 sudo docker logs filebrowser 2>&1 | grep -i password   (girişten sonra değiştir)"
+echo "  File Browser : $FB_INFO"
 echo "  Scrutiny     : giriş ekranı YOKTUR; yalnızca yerel ağda kalmalı."
 echo "  AdGuard      : kurulum sihirbazında yönetici hesabı oluştur"
 if [[ "${LAN_LOCK_OK:-no}" == yes ]]; then
@@ -1323,8 +1392,7 @@ echo "  Dockge       : http://$SERVER_IP:5001  -> create the admin account"
 echo "  Beszel       : http://$SERVER_IP:8090  -> create the admin account"
 echo "  Uptime Kuma  : http://$SERVER_IP:3001  -> create the admin account"
 echo "  n8n          : http://$SERVER_IP:5678  -> create the owner account"
-echo "  File Browser : user 'admin'; the initial password is generated randomly and written to the log:"
-echo "                 sudo docker logs filebrowser 2>&1 | grep -i password   (change it after logging in)"
+echo "  File Browser : $FB_INFO"
 echo "  Scrutiny     : has NO login screen; it must stay on the local network only."
 echo "  AdGuard      : create the admin account in the setup wizard"
 if [[ "${LAN_LOCK_OK:-no}" == yes ]]; then

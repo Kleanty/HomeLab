@@ -1429,3 +1429,11 @@ body.controls-top .ap-foot { order: -1; margin-bottom: 4px; }
 /* HomeLab: dots are easy to hit (page jump on tap) */
 #dots > i { position: relative; }
 #dots > i::after { content: ""; position: absolute; inset: -14px -7px; }
+
+/* Not Connected screen: covers the page content while the computer is unreachable */
+#notConnected { position: fixed; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; background: var(--bg); padding: 24px; }
+body.offline #notConnected { display: flex; }
+#notConnected .nc-card { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px; text-align: center; color: var(--muted); }
+#notConnected .ico { width: 56px; height: 56px; color: #fca5a5; }
+#notConnected b { font-size: 22px; color: var(--text); font-weight: 600; }
+#notConnected span { font-size: 14px; line-height: 1.5; }

@@ -163,7 +163,7 @@ chmod +x KUR.sh
 ./KUR.sh
 ```
 
-`sudo` may ask for your password. At the start, the installer first asks **Language / Dil** (English or Türkçe); your choice is used for all installer messages, notifications and the helper scripts. Then it asks for one username and one password (the password is asked twice, at least 14 characters; if it is too short or does not match, it says why and asks again). The same password is used for the settings page login, Samba, RustDesk, ntfy and Syncthing; Samba uses the Linux account as the username. After that it proceeds without asking questions. Do not close the terminal during the install. The install log is kept under `~/HomeLab_Logs/kurulum-*.log`; at the end of the install the IP, links, RustDesk ID and ntfy details are written to `~/HomeLab_Logs/kurulum-ozeti-*.txt` and shown on screen (it contains secrets and is not written to the log). If an error occurs, the terminal shows the error line, exit code, command and log path. Before sharing the log, review it for private IPs or usernames.
+`sudo` may ask for your password. The installer first asks **Language / Dil** (1 English, 2 Türkçe; Enter = English; `HL_LANG=tr bash KUR.sh` skips the question). It asks for one username and one password (the password is asked twice, at least 14 characters; if it is too short or does not match, it says why and asks again). The same password is used for the settings page login, Samba, RustDesk, ntfy and Syncthing; Samba uses the Linux account as the username. It also asks once whether to set up the Home Assistant VM (default yes). After that it proceeds without asking questions. Do not close the terminal during the install. The install log is kept under `~/HomeLab_Logs/kurulum-*.log`; at the end of the install the IP, links, RustDesk ID and ntfy details are written to `~/HomeLab_Logs/kurulum-ozeti-*.txt` and shown on screen (it contains secrets and is not written to the log). If an error occurs, the terminal shows the error line, exit code, command and log path. Before sharing the log, review it for private IPs or usernames.
 
 After the install, log out and back in once (docker and plugdev groups): USB pairing and Docker control only work after that.
 
@@ -211,7 +211,7 @@ The report is created under `~/HomeLab_Logs/tani-*.txt`. This report checks serv
 
 ### Do these immediately on first login
 
-Dockge, Beszel, Uptime Kuma and n8n let whoever opens them first create the admin account; create it yourself right after the install. The File Browser username is `admin`; the first password is generated randomly and written to the log (`sudo docker logs filebrowser`). Scrutiny has no login screen. Add a password to the Syncthing interface (127.0.0.1:8384). The same list is printed on screen at the end of the install.
+Dockge, Beszel, Uptime Kuma and n8n let whoever opens them first create the admin account; create it yourself right after the install. File Browser uses the installation username and password. Scrutiny has no login screen. Add a password to the Syncthing interface (127.0.0.1:8384). The same list is printed on screen at the end of the install.
 
 ## 4. HomeLab settings page login
 
@@ -263,6 +263,49 @@ This package is designed primarily for a **clean Linux Mint 22.x install**. Some
 
 However, existing Compose projects are re-applied with `up -d`; the Docker daemon setting, service versions and existing container behaviour may change. Before running directly on an existing server, back up `/srv/homelab` and the Docker configuration. Adding an Agent to a Beszel Hub installed differently before, and AdGuard port/IP conflicts, must also be checked separately.
 
+## Home Assistant OS virtual machine (KVM)
+
+HomeLab can run the **official Home Assistant OS** as a virtual machine (KVM/QEMU/libvirt) next to the Docker services. The installer asks once at the start ("Set up the Home Assistant VM? [Y/n]") and does the work in step 11. Run `HL_HAOS=no bash KUR.sh` to skip it without a question.
+
+**What the installer does:** checks the hardware, installs `qemu`, `libvirt`, `virt-install`, `OVMF` and `socat`, downloads the latest official `haos_ova` image from the `home-assistant/operating-system` GitHub releases (SHA-256 verified when GitHub publishes it), creates the VM `homeassistant` (UEFI, virtio disk, NAT network with a fixed address `192.168.122.10`), turns on autostart, lets the VM network through next to Docker (`homelab-libvirt-fw.service`) and forwards the computer's port **8123** to the VM for the home network only (`homelab-ha-forward.service`).
+
+**Automatic sizing (override with `HAOS_RAM_MB`, `HAOS_VCPUS`, `HAOS_DISK_GB`):**
+
+| Computer | VM memory | VM CPUs | VM disk |
+|---|---|---|---|
+| under 6 GB RAM | not created (reason shown) | - | - |
+| 6-8 GB RAM (e.g. an 8 GB server) | 2 GB | 1-2 | 32 GB |
+| 9-16 GB RAM | 4 GB | 2-4 | 32 GB |
+| more than 16 GB RAM | 6 GB | 2-4 | 32 GB |
+
+**When the VM cannot be created** the installation does **not** fail. The reason is written to `/var/lib/homelab-installer/haos.status`, listed in the final summary and shown in the "Home Assistant" row of the phone panel. Typical reasons: virtualization is off in BIOS/UEFI (enable *Intel VT-x* / *AMD-V / SVM Mode*), the computer is itself a virtual machine, less than 6 GB RAM, less than 40 GB free disk, or no internet. Alternatives: run Home Assistant Container in Docker (`ghcr.io/home-assistant/home-assistant:stable`, host network, no add-ons), or use a separate small computer with Home Assistant OS. After fixing the cause, run `bash /srv/homelab/tools/setup-haos-vm.sh` again (it is safe to repeat; an existing VM is never recreated).
+
+**Use it:** open `http://<server-IP>:8123` from the home network and create the owner account yourself (using the same username and password as the rest of HomeLab is recommended). The first start can take 10-20 minutes. Manage the VM with `sudo homelab-haos status|start|stop|restart|backup`; the phone panel shows its state on the Home page and has *Home Assistant: start VM / stop VM* keys under Shortcuts. To control entities from the panel, create a long-lived access token in Home Assistant and enter the address and token in the HomeLab settings page (`http://127.0.0.1:8765`, Home Assistant section; the existing mechanism is used, there is no second one).
+
+**Zigbee / Matter / Thread / ESPHome:** the infrastructure is ready but nothing is configured, because you have no devices yet. When you plug in a USB adapter (for example a Zigbee or Thread stick), run `sudo homelab-haos usb list` (adapters that look like Zigbee/Z-Wave/Thread sticks are marked `*`), then `sudo homelab-haos usb attach <vendor:product>`, or `sudo homelab-haos usb auto` to attach every known adapter that is plugged in. It works the same on any computer and the attachment survives reboots. Then add the *Zigbee Home Automation*, *Matter* or *Thread* integration inside Home Assistant; ESPHome can be installed as a Home Assistant add-on.
+
+**Security:** port 8123 is reachable from the home network only; **do not forward it on the router**. Use Tailscale for remote access. HomeLab does not touch router, DNS, Cloudflare or Tailscale settings.
+
+**Backup and restore:** the best backup is Home Assistant's own (*Settings > System > Backups*, keep a copy off the VM). `sudo homelab-haos backup` additionally makes a cold copy of the VM disk in `/srv/homelab/backups/haos` (newest 3 kept). To restore: stop the VM (`sudo homelab-haos stop`), copy the backup file over `/var/lib/libvirt/images/haos.qcow2` (`sudo cp --sparse=always <backup> /var/lib/libvirt/images/haos.qcow2`), then `sudo homelab-haos start`. Or reinstall with the setup script and restore the Home Assistant backup in its welcome screen.
+
+**Not tested here:** the VM creation was written and linted but could not be run in the development environment (no KVM). The "skipped" path was tested. Treat the first real run on your hardware as the test and send `~/HomeLab_Logs/kurulum-*.log` if it reports a problem.
+
+## USB (ADB) connection: phone-side setup
+
+The computer side is automatic, but Android must allow the computer once:
+
+1. **Developer options:** Settings > About phone > tap **Build number** 7 times.
+2. Settings > System > Developer options > turn on **USB debugging**.
+3. Plug in the USB cable and choose **File transfer** (not "Charging only") in the USB notification.
+4. On the phone, a prompt "Allow USB debugging?" appears: tick **Always allow from this computer** and tap **Allow**.
+5. Log out and in once after the install (the `plugdev` group), then check `adb devices`: the state must be `device`.
+
+If `adb devices` shows `unauthorized`, the HomeLab agent shows "no phone connected, waiting" (it counts only `device`). Fix: Developer options > **Revoke USB debugging authorizations**, unplug, turn USB debugging off and on, plug in again and accept the prompt. Try another cable or another USB mode if no prompt appears.
+
+## GitHub Pages pairing page: first setup
+
+The pairing page `https://kleanty.github.io/HomeLab/pair/` is published by `.github/workflows/pages.yml`. One-time repository setting: **Settings > Pages > Build and deployment > Source: GitHub Actions** (not "Deploy from a branch"). The workflow has two jobs, `build` (uploads the `site/` artifact) and `deploy` (needs `build`); a single combined job can fail with `Found 0 artifact(s)` / `Fetching artifact metadata failed`. If a run fails with "Pages not enabled", set the Source and re-run the workflow.
+
 ## 8. Check commands
 
 ```bash
@@ -303,7 +346,7 @@ If you did a clean Linux Mint install you do not need to run `KALDIR.sh`. This t
 bash KALDIR.sh
 ```
 
-The process asks for the `HOMELAB-KALDIR` confirmation. By default it keeps the application data in `/srv/homelab`, Ollama models, shared files, web content and local backups. If you want to delete everything you must additionally type `HOMELAB-DATASI-SIL`. This choice cannot be undone. The external Restic repository is never deleted under any condition.
+The process asks for the `YES` confirmation. By default it keeps the application data in `/srv/homelab`, Ollama models, shared files, web content and local backups. If you want to delete everything you must additionally type `DELETE`. This choice cannot be undone. The external Restic repository is never deleted under any condition.
 
 Removing system packages is a separate, second choice. The newer version records the existing packages before the install and, during removal, tries to remove only the packages this install added; it keeps previously installed packages. In particular, if OpenSSH is removed your remote connection may be cut. If there is no ownership record for earlier packages, the package-removal step is skipped so that no package is deleted by mistake. So use it only while sitting at the computer. If package removal is not selected, KUR.sh may reinstall missing services on its next run.
 

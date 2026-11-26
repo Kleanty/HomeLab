@@ -37,6 +37,7 @@
 
       // Panel: Offline / Connection
       'panel.pcNotConnected': 'PC not connected',
+      'panel.notConnected': 'Not Connected',
       'panel.connecting': 'Connecting…',
       'panel.computerNotConnected': 'Computer not connected',
       'panel.wake': 'Wake the PC',
@@ -11247,24 +11248,7 @@
   function resolveLang(p) {
     const explicit = typeof p === 'string' && BY_CODE_LOWER.get(p.toLowerCase());
     if (explicit) return explicit;
-    const navs = Array.isArray(navigator.languages) && navigator.languages.length
-      ? navigator.languages
-      : [navigator.language || 'en'];
-    // The APK can have its own system language on Android 13+, independent of WebView's defaults.
-    const native = Array.isArray(window.__homelabLanguages) ? window.__homelabLanguages : [];
-    for (const raw of [...native, ...navs]) {
-      if (!raw) continue;
-      const lower = String(raw).toLowerCase().replace(/_/g, '-');
-      // Check the full tag first: a hyphenated code like pt-BR has its own entry distinct from the
-      // base-stripped pt (Portugal), so stripping to the base first would always match the wrong one.
-      const exact = BY_CODE_LOWER.get(lower);
-      if (exact) return exact;
-      if (/^zh-(?:hant|tw|hk|mo)(?:-|$)/.test(lower)) return 'zh-Hant';
-      const base = lower.split('-')[0];
-      if (base === 'in') return 'id'; // Android's legacy Indonesian language code
-      const match = BY_CODE_LOWER.get(base);
-      if (match) return match;
-    }
+    // English is the default. Another language is used only when it was chosen explicitly (handled above).
     return 'en';
   }
 

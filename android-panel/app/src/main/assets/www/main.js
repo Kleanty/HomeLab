@@ -57,10 +57,8 @@ export const PREVIEW = new URLSearchParams(location.search).has('preview') && wi
 /** Used until the agent has sent its settings once (first start without a connection). */
 export const FALLBACK_PAGES = [{
   id: 'home', title: 'Home', icon: '🏠', enabled: true, widgets: [
-    { id: 'clock', type: 'clock', x: 0, y: 0, w: 6, h: 4, options: {} },
-    { id: 'media', type: 'media', x: 6, y: 0, w: 6, h: 4, options: {} },
+    { id: 'clock', type: 'clock', x: 0, y: 0, w: 12, h: 4, options: {} },
     { id: 'cpu', type: 'stat', x: 0, y: 4, w: 3, h: 2, options: { metric: 'cpu' } },
-    { id: 'gpu', type: 'stat', x: 3, y: 4, w: 3, h: 2, options: { metric: 'gpu' } },
     { id: 'ram', type: 'stat', x: 6, y: 4, w: 3, h: 2, options: { metric: 'ram' } },
     { id: 'net', type: 'stat', x: 9, y: 4, w: 3, h: 2, options: { metric: 'net' } },
   ],

@@ -61,7 +61,7 @@ If the pre-check fails it is expected to stop without changing anything on the s
 
 ## 4. Choices asked during the install
 
-**Asked at the start of the install:** the language (Language / Dil: English or Türkçe; the choice is used for all installer messages, notifications and the helper scripts), the username (if you leave it empty, your Linux account name; only letters, digits, `.` `_` `@` `-`) and the password (at least 14 characters, twice). The same details are applied to the settings page login, RustDesk, ntfy and Syncthing; the password is also applied to Samba (the username is the Linux account). You create the first account of Dockge, Beszel, Uptime Kuma, n8n and AdGuard yourself with the same details. The first File Browser password is random (it is in the summary file).
+**Asked at the start of the install:** the username (if you leave it empty, your Linux account name; only letters, digits, `.` `_` `@` `-`) the password (at least 14 characters, twice) and whether to set up the Home Assistant VM (default yes; `HL_HAOS=no` skips it). The installer first asks the language (1 English, 2 Türkçe; Enter = English); `HL_LANG=tr bash KUR.sh` skips the question. The same details are applied to the settings page login, RustDesk, ntfy and Syncthing; the password is also applied to Samba (the username is the Linux account). You create the first account of Dockge, Beszel, Uptime Kuma, n8n and AdGuard yourself with the same details. File Browser also uses these details.
 
 | Component | How it is installed |
 |---|---|
@@ -92,9 +92,10 @@ The install proceeds in the order below. If a critical error occurs in a step, t
 6. **Base services:** Sets up the user systemd session so it can run at boot (linger), enables Syncthing, SSH, Samba and the mDNS service. For the Cinnamon power-button setting it tries to record the previous value.
 7. **Directories and Compose definitions:** Prepares data, application settings and Compose files under `/srv/homelab`. It does not overwrite existing Compose files. Dockge, Beszel, Uptime Kuma, File Browser, Ollama+n8n, Scrutiny and your own website (Caddy) are created; AdGuard and Beszel Agent are configured optionally/separately.
 8. **Containers and local AI:** Compose files are validated and started. If a stack does not start the install does not stop; it is written to the warning list on the final screen. Regardless of RAM, `qwen2.5:1.5b-instruct-q4_K_M` is downloaded on the first install (the model file is about 986 MB, runs on the CPU). Only with less than 2 GiB of free storage is the download skipped and a warning given.
-9. **Helper tools:** Installs `setup-restic-backup.sh`, `configure-beszel-agent.sh`, `reset-web-login.sh`, `harden-ssh.sh` and `lang.sh` into `/srv/homelab/tools`. (The HomeLab agent itself is downloaded, SHA-256 verified and started during the early steps; its settings page login is written right after that, as a PBKDF2 hash in `~/.config/HomeLab/web-login`.)
+9. **Helper tools:** Installs `setup-restic-backup.sh`, `configure-beszel-agent.sh`, `reset-web-login.sh`, `harden-ssh.sh`, `setup-haos-vm.sh`, `homelab-haos` and `lang.sh` into `/srv/homelab/tools`. (The HomeLab agent itself is downloaded, SHA-256 verified and started during the early steps; its settings page login is written right after that, as a PBKDF2 hash in `~/.config/HomeLab/web-login`.)
 10. **Samba and backup:** Prepares the Samba user with the same password and installs the Restic package. Because the backup needs an external disk, `setup-restic-backup.sh` is run separately.
-11. **Result:** Shows the service access addresses, the status check commands and security warnings. If one of the optional components failed it lists a separate warning.
+11. **Home Assistant VM (KVM):** Checks the hardware, installs KVM/libvirt, downloads the official Home Assistant OS image, creates the VM and its autostart. Never stops the install: if the computer cannot do it, the reason is shown in the summary and the phone panel (see the README, "Home Assistant OS virtual machine").
+12. **Result:** Shows the service access addresses, the status check commands and security warnings. If one of the optional components failed it lists a separate warning.
 
 ## 6. Main areas the install creates
 
@@ -212,6 +213,49 @@ If a Docker container does not start, first look at the output of `sudo docker p
 The install makes changes in different areas: APT packages, services, Docker containers, the Samba share, the settings page login and a possible external Restic repository. Automatically removing all of them at the moment of an error could delete running Docker data, earlier settings or the backup repository. So the script **does not roll back automatically**; it records what was done and the error in the log and preserves data. Because this is a clean Linux install, for most temporary errors the solution is to fix the error and re-run `./KUR.sh`. Only if the Restic password/repository step stopped halfway, get support first; do not "clean up" by deleting files.
 
 In case of a Docker, SSH, Samba or DNS port conflict, do not stop the service or change the port without identifying which process is using the port.
+
+## Home Assistant OS virtual machine (KVM)
+
+HomeLab can run the **official Home Assistant OS** as a virtual machine (KVM/QEMU/libvirt) next to the Docker services. The installer asks once at the start ("Set up the Home Assistant VM? [Y/n]") and does the work in step 11. Run `HL_HAOS=no bash KUR.sh` to skip it without a question.
+
+**What the installer does:** checks the hardware, installs `qemu`, `libvirt`, `virt-install`, `OVMF` and `socat`, downloads the latest official `haos_ova` image from the `home-assistant/operating-system` GitHub releases (SHA-256 verified when GitHub publishes it), creates the VM `homeassistant` (UEFI, virtio disk, NAT network with a fixed address `192.168.122.10`), turns on autostart, lets the VM network through next to Docker (`homelab-libvirt-fw.service`) and forwards the computer's port **8123** to the VM for the home network only (`homelab-ha-forward.service`).
+
+**Automatic sizing (override with `HAOS_RAM_MB`, `HAOS_VCPUS`, `HAOS_DISK_GB`):**
+
+| Computer | VM memory | VM CPUs | VM disk |
+|---|---|---|---|
+| under 6 GB RAM | not created (reason shown) | - | - |
+| 6-8 GB RAM (e.g. an 8 GB server) | 2 GB | 1-2 | 32 GB |
+| 9-16 GB RAM | 4 GB | 2-4 | 32 GB |
+| more than 16 GB RAM | 6 GB | 2-4 | 32 GB |
+
+**When the VM cannot be created** the installation does **not** fail. The reason is written to `/var/lib/homelab-installer/haos.status`, listed in the final summary and shown in the "Home Assistant" row of the phone panel. Typical reasons: virtualization is off in BIOS/UEFI (enable *Intel VT-x* / *AMD-V / SVM Mode*), the computer is itself a virtual machine, less than 6 GB RAM, less than 40 GB free disk, or no internet. Alternatives: run Home Assistant Container in Docker (`ghcr.io/home-assistant/home-assistant:stable`, host network, no add-ons), or use a separate small computer with Home Assistant OS. After fixing the cause, run `bash /srv/homelab/tools/setup-haos-vm.sh` again (it is safe to repeat; an existing VM is never recreated).
+
+**Use it:** open `http://<server-IP>:8123` from the home network and create the owner account yourself (using the same username and password as the rest of HomeLab is recommended). The first start can take 10-20 minutes. Manage the VM with `sudo homelab-haos status|start|stop|restart|backup`; the phone panel shows its state on the Home page and has *Home Assistant: start VM / stop VM* keys under Shortcuts. To control entities from the panel, create a long-lived access token in Home Assistant and enter the address and token in the HomeLab settings page (`http://127.0.0.1:8765`, Home Assistant section; the existing mechanism is used, there is no second one).
+
+**Zigbee / Matter / Thread / ESPHome:** the infrastructure is ready but nothing is configured, because you have no devices yet. When you plug in a USB adapter (for example a Zigbee or Thread stick), run `sudo homelab-haos usb list` (adapters that look like Zigbee/Z-Wave/Thread sticks are marked `*`), then `sudo homelab-haos usb attach <vendor:product>`, or `sudo homelab-haos usb auto` to attach every known adapter that is plugged in. It works the same on any computer and the attachment survives reboots. Then add the *Zigbee Home Automation*, *Matter* or *Thread* integration inside Home Assistant; ESPHome can be installed as a Home Assistant add-on.
+
+**Security:** port 8123 is reachable from the home network only; **do not forward it on the router**. Use Tailscale for remote access. HomeLab does not touch router, DNS, Cloudflare or Tailscale settings.
+
+**Backup and restore:** the best backup is Home Assistant's own (*Settings > System > Backups*, keep a copy off the VM). `sudo homelab-haos backup` additionally makes a cold copy of the VM disk in `/srv/homelab/backups/haos` (newest 3 kept). To restore: stop the VM (`sudo homelab-haos stop`), copy the backup file over `/var/lib/libvirt/images/haos.qcow2` (`sudo cp --sparse=always <backup> /var/lib/libvirt/images/haos.qcow2`), then `sudo homelab-haos start`. Or reinstall with the setup script and restore the Home Assistant backup in its welcome screen.
+
+**Not tested here:** the VM creation was written and linted but could not be run in the development environment (no KVM). The "skipped" path was tested. Treat the first real run on your hardware as the test and send `~/HomeLab_Logs/kurulum-*.log` if it reports a problem.
+
+## USB (ADB) connection: phone-side setup
+
+The computer side is automatic, but Android must allow the computer once:
+
+1. **Developer options:** Settings > About phone > tap **Build number** 7 times.
+2. Settings > System > Developer options > turn on **USB debugging**.
+3. Plug in the USB cable and choose **File transfer** (not "Charging only") in the USB notification.
+4. On the phone, a prompt "Allow USB debugging?" appears: tick **Always allow from this computer** and tap **Allow**.
+5. Log out and in once after the install (the `plugdev` group), then check `adb devices`: the state must be `device`.
+
+If `adb devices` shows `unauthorized`, the HomeLab agent shows "no phone connected, waiting" (it counts only `device`). Fix: Developer options > **Revoke USB debugging authorizations**, unplug, turn USB debugging off and on, plug in again and accept the prompt. Try another cable or another USB mode if no prompt appears.
+
+## GitHub Pages pairing page: first setup
+
+The pairing page `https://kleanty.github.io/HomeLab/pair/` is published by `.github/workflows/pages.yml`. One-time repository setting: **Settings > Pages > Build and deployment > Source: GitHub Actions** (not "Deploy from a branch"). The workflow has two jobs, `build` (uploads the `site/` artifact) and `deploy` (needs `build`); a single combined job can fail with `Found 0 artifact(s)` / `Fetching artifact metadata failed`. If a run fails with "Pages not enabled", set the Source and re-run the workflow.
 
 ## 9. External access and security
 

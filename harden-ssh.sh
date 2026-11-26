@@ -77,8 +77,8 @@ IMPORTANT: WITHOUT closing this window, test from another computer (or a new ter
 that you can log in WITH THE KEY:  ssh $(id -un)@$(hostname -s).local
 MSG
 fi
-read -r -p "$(T 'Anahtarla girişin çalıştığını doğrulamak için ANAHTAR-CALISIYOR yaz' 'To confirm that key login works, type ANAHTAR-CALISIYOR'): " OK
-[[ "$OK" == "ANAHTAR-CALISIYOR" ]] || { echo "$(T 'İptal edildi; hiçbir şey değişmedi.' 'Cancelled; nothing was changed.')"; exit 0; }
+read -r -p "$(T 'Anahtarla girişin çalıştığını doğrulamak için YES yaz' 'To confirm that key login works, type YES'): " OK
+[[ "$OK" == "YES" ]] || { echo "$(T 'İptal edildi; hiçbir şey değişmedi.' 'Cancelled; nothing was changed.')"; exit 0; }
 
 sudo install -d -m 0755 /etc/ssh/sshd_config.d
 {

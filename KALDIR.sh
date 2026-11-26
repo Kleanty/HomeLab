@@ -90,8 +90,8 @@ BANNER
 fi
 
 echo
-read -r -p "$(T 'Devam etmek için TAM OLARAK HOMELAB-KALDIR yaz' 'To continue, type EXACTLY HOMELAB-KALDIR'): " CONFIRM
-[[ "$CONFIRM" == "HOMELAB-KALDIR" ]] || { echo "$(T 'İptal edildi.' 'Cancelled.')"; exit 0; }
+read -r -p "$(T 'Devam etmek için TAM OLARAK YES yaz' 'To continue, type EXACTLY YES'): " CONFIRM
+[[ "$CONFIRM" == "YES" ]] || { echo "$(T 'İptal edildi.' 'Cancelled.')"; exit 0; }
 sudo -v
 
 remove_compose_stack() {
@@ -201,6 +201,23 @@ if sudo test -f /var/lib/homelab-installer/markers/homelab-installed; then
   if [[ "$PB_APP" == /*/HomeLab/app && -d "$PB_APP" ]]; then rm -rf "$PB_APP"; fi
   sudo rm -f /var/lib/homelab-installer/homelab-app
   echo "$(T 'HomeLab ajanı kaldırıldı (ayarlar ve telefon eşleşmeleri korundu).' 'HomeLab agent removed (settings and phone pairings were kept).')"
+fi
+# Home Assistant VM: it holds the smart-home data, so it is removed only after a separate confirmation.
+if sudo test -f /var/lib/homelab-installer/haos.status && command -v virsh >/dev/null 2>&1 && sudo virsh -c qemu:///system dominfo homeassistant >/dev/null 2>&1; then
+  echo
+  echo "$(T 'Home Assistant sanal makinesi bulundu. Silinirse tüm Home Assistant verisi (cihazlar, otomasyonlar, geçmiş) kaybolur.' 'A Home Assistant virtual machine was found. If it is deleted, all Home Assistant data (devices, automations, history) is lost.')"
+  read -r -p "$(T 'Silmek için TAM OLARAK DELETE yaz (boş bırak = koru): ' 'To delete it, type EXACTLY DELETE (empty = keep it): ')" HAOS_CONFIRM
+  if [[ "$HAOS_CONFIRM" == "DELETE" ]]; then
+    sudo virsh -c qemu:///system destroy homeassistant >/dev/null 2>&1 || true
+    sudo virsh -c qemu:///system undefine homeassistant --nvram >/dev/null 2>&1 || sudo virsh -c qemu:///system undefine homeassistant >/dev/null 2>&1 || true
+    sudo rm -f /var/lib/libvirt/images/haos.qcow2
+    sudo systemctl disable --now homelab-ha-forward.service homelab-libvirt-fw.service >/dev/null 2>&1 || true
+    sudo rm -f /etc/systemd/system/homelab-ha-forward.service /etc/systemd/system/homelab-libvirt-fw.service /etc/sudoers.d/homelab-haos /usr/local/sbin/homelab-haos /var/lib/homelab-installer/haos.status /var/lib/homelab-installer/haos.desired
+    sudo systemctl daemon-reload
+    echo "$(T 'Home Assistant sanal makinesi silindi. (KVM/libvirt paketleri kaldırılmadı.)' 'The Home Assistant VM was deleted. (The KVM/libvirt packages were not removed.)')"
+  else
+    echo "$(T 'Home Assistant sanal makinesi korundu.' 'The Home Assistant VM was kept.')"
+  fi
 fi
 # Undo the sleep block, auto-login and the saved Cinnamon sleep settings.
 for SLEEP_TARGET in sleep suspend hibernate hybrid-sleep; do
@@ -339,8 +356,8 @@ echo "[4/7] $(T '/srv/homelab dosyaları' '/srv/homelab files')"
 read -r -p "$(T '/srv/homelab içindeki TÜM dosyalar (appdata, paylaşılan dosyalar, Ollama modelleri, web sitesi ve yerel yedekler dahil) silinsin mi? [e/H]' 'Delete ALL files inside /srv/homelab (including appdata, shared files, Ollama models, the website and local backups)? [y/N]'): " WIPE_DATA
 if [[ "$WIPE_DATA" =~ ^[EeYy]$ ]]; then
   echo "$(T 'Bu işlem geri alınamaz. Harici Restic deposu bu klasörün dışındaysa korunur.' 'This cannot be undone. The external Restic repository is kept if it is outside this folder.')"
-  read -r -p "$(T 'Onaylamak için TAM OLARAK HOMELAB-DATASI-SIL yaz' 'To confirm, type EXACTLY HOMELAB-DATASI-SIL'): " WIPE_CONFIRM
-  if [[ "$WIPE_CONFIRM" == "HOMELAB-DATASI-SIL" ]]; then
+  read -r -p "$(T 'Onaylamak için TAM OLARAK DELETE yaz' 'To confirm, type EXACTLY DELETE'): " WIPE_CONFIRM
+  if [[ "$WIPE_CONFIRM" == "DELETE" ]]; then
     sudo rm -rf --one-file-system -- "$BASE"
     echo "$(T '/srv/homelab tamamen silindi.' '/srv/homelab was deleted completely.')"
   else
@@ -373,8 +390,8 @@ fi
 read -r -p "$(T 'Docker, Restic, Samba, Syncthing, OpenSSH, Fail2ban, RustDesk ve Tailscale paketleri de kaldırılsın mı? [e/H]' 'Also remove the Docker, Restic, Samba, Syncthing, OpenSSH, Fail2ban, RustDesk and Tailscale packages? [y/N]'): " PURGE_PACKAGES
 if [[ "$PURGE_PACKAGES" =~ ^[EeYy]$ ]]; then
   echo "$(T 'UYARI: Bu işlem SSH dahil sistem servislerini kaldırabilir. Yerel konsolda olduğundan emin ol.' 'WARNING: This may remove system services including SSH. Make sure you are on the local console.')"
-  read -r -p "$(T 'Son onay için TAM OLARAK SISTEM-PAKETLERINI-SIL yaz' 'For the final confirmation, type EXACTLY SISTEM-PAKETLERINI-SIL'): " PURGE_CONFIRM
-  if [[ "$PURGE_CONFIRM" == "SISTEM-PAKETLERINI-SIL" ]]; then
+  read -r -p "$(T 'Son onay için TAM OLARAK PURGE yaz' 'For the final confirmation, type EXACTLY PURGE'): " PURGE_CONFIRM
+  if [[ "$PURGE_CONFIRM" == "PURGE" ]]; then
     if sudo test -f /var/lib/homelab-installer/markers/installed-packages; then
       mapfile -t OWN_PACKAGES < <(sudo cat /var/lib/homelab-installer/markers/installed-packages | grep -E '^[a-z0-9][a-z0-9+.-]*$' || true)
       if ((${#OWN_PACKAGES[@]})); then

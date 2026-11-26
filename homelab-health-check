@@ -62,6 +62,12 @@ if [[ -f /etc/restic/homelab.env ]]; then
   fi
 fi
 
+# 6) Home Assistant VM stopped although it was not stopped on purpose
+if [[ -x /usr/local/sbin/homelab-haos ]]; then
+  HA_CHECK="$(/usr/local/sbin/homelab-haos brief 2>/dev/null || true)"
+  [[ "${HA_CHECK%%|*}" == error ]] && add_problem "haos:down" "Home Assistant VM: ${HA_CHECK#*|}"
+fi
+
 BACKUP_TEXT="$(T 'Kurulu değil' 'Not installed')"; BACKUP_LEVEL=""
 if [[ -f /etc/restic/homelab.env ]]; then
   BACKUP_TEXT="$(T 'Zamanı bilinmiyor' 'Time unknown')"; BACKUP_LEVEL="warn"
@@ -130,16 +136,21 @@ except Exception:
     pass' || true)"
     [[ -n "$TS_OUT" ]] && { TS_LVL="${TS_OUT%%|*}"; TS_TXT="${TS_OUT#*|}"; }
   fi
+  HA_TXT="$(T 'Kurulu değil' 'Not installed')"; HA_LVL=""
+  if [[ -x /usr/local/sbin/homelab-haos ]]; then
+    HA_BRIEF="$(/usr/local/sbin/homelab-haos brief 2>/dev/null || true)"
+    if [[ -n "$HA_BRIEF" ]]; then HA_LVL="${HA_BRIEF%%|*}"; HA_TXT="${HA_BRIEF#*|}"; fi
+  fi
   push_phone homelab-status "$(python3 -c 'import json,os,sys
 a=sys.argv[1:]
 tr=os.environ.get("HL_LANG")=="tr"
-names=["Durum","Konteynerler","Disk","İnternet","Son yedek","Tailscale"] if tr else ["Status","Containers","Disk","Internet","Last backup","Tailscale"]
+names=["Durum","Konteynerler","Disk","İnternet","Son yedek","Tailscale","Home Assistant"] if tr else ["Status","Containers","Disk","Internet","Last backup","Tailscale","Home Assistant"]
 items=[]
 for i,n in enumerate(names):
     it={"label":n,"value":a[2*i]}
     if a[2*i+1]: it["level"]=a[2*i+1]
     items.append(it)
-print(json.dumps({"items":items}))' "$HEALTH_TXT" "$HEALTH_LVL" "$CONT_TXT" "$CONT_LVL" "%$MAX_USE${DISK_SIZE:+ · $DISK_SIZE}" "$DISK_LEVEL" "$NET_TXT" "$NET_LVL" "$BACKUP_TEXT" "$BACKUP_LEVEL" "$TS_TXT" "$TS_LVL")" || true
+print(json.dumps({"items":items}))' "$HEALTH_TXT" "$HEALTH_LVL" "$CONT_TXT" "$CONT_LVL" "%$MAX_USE${DISK_SIZE:+ · $DISK_SIZE}" "$DISK_LEVEL" "$NET_TXT" "$NET_LVL" "$BACKUP_TEXT" "$BACKUP_LEVEL" "$TS_TXT" "$TS_LVL" "$HA_TXT" "$HA_LVL")" || true
   # Alerts page: currently open alerts and recent history (newest first)
   push_phone homelab-alerts-now "$(python3 -c 'import json,os,sys
 tr=os.environ.get("HL_LANG")=="tr"
