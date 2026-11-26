@@ -429,7 +429,11 @@ S = {
            "procs": "Processes", "shortcuts": "Shortcuts"},
 }[lang]
 base = sys.argv[1]
-with urllib.request.urlopen(base + "/api/settings", timeout=10) as r:
+import base64
+auth = {}
+if os.environ.get("HL_WEB_USER"):  # the settings page login, when one is set (harmless when not)
+    auth["Authorization"] = "Basic " + base64.b64encode((os.environ["HL_WEB_USER"] + ":" + os.environ["HL_WEB_PW"]).encode("utf-8")).decode("ascii")
+with urllib.request.urlopen(urllib.request.Request(base + "/api/settings", headers=auth), timeout=10) as r:
     version = r.headers.get("X-Config-Version")
     cfg = json.load(r)
 cfg.setdefault("updates", {})["auto"] = False
@@ -472,10 +476,7 @@ shortcuts = cfg.setdefault("shortcuts", [])
 for sid, label, icon, arg in (("ha-start", "Home Assistant: start VM", "▶️", "start"), ("ha-stop", "Home Assistant: stop VM", "⏹️", "stop")):
     if not any(x.get("id") == sid for x in shortcuts):
         shortcuts.append({"id": sid, "label": label, "icon": icon, "color": "#2dd4bf", "cmd": "sudo", "args": "-n /usr/local/sbin/homelab-haos " + arg})
-headers = {"Content-Type": "application/json"}
-if os.environ.get("HL_WEB_USER"):  # the settings page login, when one is set (harmless when not)
-    import base64
-    headers["Authorization"] = "Basic " + base64.b64encode((os.environ["HL_WEB_USER"] + ":" + os.environ["HL_WEB_PW"]).encode("utf-8")).decode("ascii")
+headers = {"Content-Type": "application/json", **auth}
 if version:
     headers["X-Config-Version"] = version
 req = urllib.request.Request(base + "/api/settings", data=json.dumps(cfg).encode("utf-8"), method="PUT", headers=headers)
