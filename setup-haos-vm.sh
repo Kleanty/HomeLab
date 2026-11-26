@@ -129,23 +129,27 @@ if ! sudo virsh dominfo "$VM" >/dev/null 2>&1; then
     CAND="$REPO_URL/download/$TAG/${NAME_PREFIX}${TAG}.qcow2.xz"
     if curl -fsSL --max-time 30 -r 0-0 -o /dev/null "$CAND" 2>/dev/null; then URL="$CAND"; VERSION="$TAG"; fi
   fi
-  # Way 2: the GitHub API (also gives the SHA-256 when GitHub publishes it)
-  if curl -fsSL --max-time 30 https://api.github.com/repos/home-assistant/operating-system/releases/latest -o "$REL" 2>/dev/null; then
+  # Way 2: the GitHub API, newest releases first. A brand-new release can be published before every image is attached
+  # (it may only have Raspberry Pi files for a while), so the newest release that really has the VM image is used.
+  if curl -fsSL --max-time 30 "https://api.github.com/repos/home-assistant/operating-system/releases?per_page=15" -o "$REL" 2>/dev/null; then
     mapfile -t META < <(python3 -I - "$REL" "$NAME_PREFIX" <<'PY'
 import json, re, sys
-d = json.load(open(sys.argv[1])); prefix = sys.argv[2]
-assets = d.get("assets", [])
-pick = next((a for a in assets if re.fullmatch(re.escape(prefix) + r"[0-9][0-9A-Za-z.\-]*\.qcow2\.xz", a.get("name", ""))), None)
-if pick:
-    print(pick["browser_download_url"]); print((pick.get("digest") or "").replace("sha256:", "")); print(d.get("tag_name", ""))
+rels = json.load(open(sys.argv[1])); prefix = sys.argv[2]
+pat = re.compile(re.escape(prefix) + r"[0-9][0-9A-Za-z.\-]*\.qcow2\.xz")
+seen = []
+for d in rels if isinstance(rels, list) else []:
+    if d.get("draft") or d.get("prerelease"): continue
+    assets = d.get("assets", [])
+    pick = next((a for a in assets if pat.fullmatch(a.get("name", ""))), None)
+    if pick:
+        print(pick["browser_download_url"]); print((pick.get("digest") or "").replace("sha256:", "")); print(d.get("tag_name", "")); break
+    seen.append(d.get("tag_name", "?") + "(" + str(len(assets)) + " files, no VM image)")
 else:
     print("", file=sys.stderr)
-    print("  assets seen: " + ", ".join(a.get("name", "") for a in assets[:60]) + " " + str(d.get("message", "")), file=sys.stderr)
+    print("  releases checked: " + ", ".join(seen) + " " + (str(rels.get("message", "")) if isinstance(rels, dict) else ""), file=sys.stderr)
 PY
 )
-    if [[ -n "${META[0]:-}" ]]; then
-      if [[ -z "$URL" || "$URL" == "${META[0]}" ]]; then URL="${META[0]}"; SHA="${META[1]:-}"; VERSION="${META[2]:-$VERSION}"; fi
-    fi
+    if [[ -n "${META[0]:-}" ]] && { [[ -z "$URL" ]] || [[ "$URL" == "${META[0]}" ]]; }; then URL="${META[0]}"; SHA="${META[1]:-}"; VERSION="${META[2]:-$VERSION}"; fi
   fi
   VERSION="${VERSION:-unknown}"
   [[ "$URL" == https://github.com/home-assistant/operating-system/releases/download/* ]] || fail "$(T 'uygun Home Assistant OS imajı bulunamadı (GitHub sürüm sayfası/API okunamadı veya dosya adı değişti)' 'no suitable Home Assistant OS image was found (the GitHub release page/API could not be read, or the file name changed)')"

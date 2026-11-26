@@ -1094,7 +1094,9 @@ if sudo docker container inspect ntfy >/dev/null 2>&1 && ! sudo test -f "$NTFY_C
   [[ "$ACCOUNT_USER" == homelab ]] && NTFY_ADMIN_USER=homelab-bot
   NTFY_ADMIN_PASS="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
   NTFY_TOPIC_NAME="homelab-installer-$(python3 -c 'import secrets; print(secrets.token_hex(6))')"
-  if sudo env NTFY_PASSWORD="$NTFY_ADMIN_PASS" docker compose -f "$STACKS/notify/compose.yaml" exec -T -e NTFY_PASSWORD ntfy ntfy user add --role=admin "$NTFY_ADMIN_USER"; then
+  # On a re-run the user already exists (ntfy data is kept): set a fresh password instead of failing.
+  if sudo env NTFY_PASSWORD="$NTFY_ADMIN_PASS" docker compose -f "$STACKS/notify/compose.yaml" exec -T -e NTFY_PASSWORD ntfy ntfy user add --role=admin "$NTFY_ADMIN_USER" \
+    || sudo env NTFY_PASSWORD="$NTFY_ADMIN_PASS" docker compose -f "$STACKS/notify/compose.yaml" exec -T -e NTFY_PASSWORD ntfy ntfy user change-pass "$NTFY_ADMIN_USER"; then
     sudo install -d -m 0700 -o root -g root /etc/homelab-installer
     ( umask 077; sudo tee "$NTFY_CONF" >/dev/null <<EOF_NTFY_ENV
 NTFY_URL=http://127.0.0.1:2586
