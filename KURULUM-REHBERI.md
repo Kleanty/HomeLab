@@ -20,7 +20,7 @@ Bu kılavuz, **boş/yeni bir bilgisayara Linux Mint kurduktan sonra** HomeLab pa
 - HomeLab ayar sayfası girişi için kullanıcı adı ve **en az 14 karakterli** güçlü parola.
 - Kullanacağın bir kullanıcı adı ve parola (Samba dahil hepsinde aynı parola).
 - Restic otomatik yedekleme isteniyorsa, sistem diskinden ayrı bir harici disk. Yedekleme kurulumu ertelenebilir.
-- Kurulum varsayılan olarak İngilizcedir (Türkçe mesajlar için `HL_LANG=tr bash KUR.sh`). Bir kullanıcı adı ve bir parola sorulur; parola iki kez girilir, yanlışsa tekrar sorulur. Tek evet/hayır sorusu: Home Assistant VM kurulsun mu (varsayılan evet; `HL_HAOS=no` atlar).
+- Kurulum başında önce dil sorulur (1 English, 2 Türkçe; Enter = İngilizce), sonra bir kullanıcı adı ve bir parola (iki kez; yanlışsa tekrar sorulur), sonra tek evet/hayır sorusu: Home Assistant VM kurulsun mu (varsayılan evet; `HL_HAOS=no` atlar). Başka soru yoktur.
 
 > Temiz kurulum hedefi seçildiği için mevcut sistem verileri korunacak bir güncelleme senaryosu yoktur. Linux Mint kurulumunda yanlış diski seçmek o diskteki verileri silebilir.
 
@@ -30,18 +30,24 @@ ZIP'i Linux Mint masaüstünde bir klasöre çıkar. Arşivdeki dosyaların ayn�
 
 ```text
 HomeLab/
-├── KUR.sh
+├── KUR.sh                      (kurulum; bunu başlat)
+├── KALDIR.sh                   (adım adım kaldırma)
+├── TANI.sh                     (tanılama)
 ├── lang.sh
-├── KURULUM-REHBERI.md
-├── KALDIR.sh
-├── TANI.sh
+├── setup-haos-vm.sh            (Home Assistant OS sanal makinesi)
+├── homelab-haos                (Home Assistant VM yönetimi)
 ├── homelab-docker-lan-only
 ├── homelab-notify
 ├── homelab-health-check
 ├── reset-web-login.sh
 ├── harden-ssh.sh
 ├── setup-restic-backup.sh
-└── configure-beszel-agent.sh
+├── configure-beszel-agent.sh
+├── README.md, README.tr.md, INSTALL-GUIDE.md, KURULUM-REHBERI.md
+├── agent/                      (HomeLab ajanı kaynağı, GitHub Actions derler)
+├── android-panel/              (HomeLab Panel uygulaması kaynağı)
+├── site/                       (GitHub Pages eşleştirme sayfası)
+├── docs/                       (ekran görüntüleri)
 ```
 
 `KUR.sh` dosyasını tek başına başka yere kopyalama; yanındaki yardımcı dosyaları bulması gerekir.
@@ -239,7 +245,14 @@ HomeLab, **resmi Home Assistant OS**'u Docker servislerinin yanında sanal makin
 
 **Yedek ve geri yükleme:** en iyi yedek Home Assistant'ın kendi yedeğidir (*Ayarlar > Sistem > Yedeklemeler*; bir kopyayı VM dışında tut). `sudo homelab-haos backup` ayrıca VM diskinin soğuk kopyasını `/srv/homelab/backups/haos` içine alır (son 3 kopya tutulur). Geri yüklemek için: VM'i durdur (`sudo homelab-haos stop`), yedek dosyasını `/var/lib/libvirt/images/haos.qcow2` üzerine kopyala (`sudo cp --sparse=always <yedek> /var/lib/libvirt/images/haos.qcow2`), sonra `sudo homelab-haos start`. Ya da kurulum betiğiyle yeniden kurup Home Assistant yedeğini karşılama ekranından geri yükle.
 
-**Burada test edilmedi:** VM oluşturma yazıldı ve statik denetimden geçti ama geliştirme ortamında (KVM yok) çalıştırılamadı. "Atlandı" yolu test edildi. Kendi donanımında ilk çalıştırma test sayılır; sorun bildirirse `~/HomeLab_Logs/kurulum-*.log` dosyasını gönder.
+**Test edildi:** Intel i7-2600 ve 8 GB RAM üzerinde VM açılır, `192.168.122.10` adresini alır ve Home Assistant ev ağından 8123 portunda yanıt verir. **Test edilmedi:** USB adaptörler ve Zigbee/Matter/Thread cihazları (elde yok) ve VM geri yükleme.
+
+**VM sorun giderme:**
+- *Kurulum "sanallaştırma" yüzünden VM kurulmadı diyor:* BIOS/UEFI içinde Intel VT-x / AMD-V (SVM) seçeneğini aç, sonra `bash /srv/homelab/tools/setup-haos-vm.sh` çalıştır.
+- *VM "running" ama adres yok (`sudo virsh net-dhcp-leases default` boş, panelde "no network address yet"):* konsola bak: `sudo virsh console homeassistant` (çıkış: Ctrl+]). UEFI menüsü görüyorsan VM açılmamıştır; kurulum bu yüzden VM'i Secure Boot ve kayıtlı anahtarlar **kapalı** oluşturur. `HAOS_RECREATE=1 bash /srv/homelab/tools/setup-haos-vm.sh` ile yeniden oluştur (VM ve Home Assistant verisi silinir).
+- *Home Assistant imajı bulunamadı:* yepyeni bir Home Assistant OS sürümünde PC imajı birkaç saat sonra eklenebilir; kurulum o zaman imajı olan en yeni sürümü kullanır.
+- *8123 portu henüz yanıt vermiyor:* ilk açılış 10-20 dakika sürer; `curl -s -o /dev/null -w "%{http_code}\n" http://SUNUCU-IP:8123` ile dene (`302`/`307` cevabı açık demektir).
+- *Telefon Servisler sayfasında Docker hatası var:* ajanın `docker` grubuna ihtiyacı var; kurulumdan sonra bir kez oturumu kapatıp aç (veya yeniden başlat).
 
 ## USB (ADB) bağlantısı: telefon tarafı kurulumu
 

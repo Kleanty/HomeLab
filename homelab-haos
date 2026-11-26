@@ -45,7 +45,8 @@ case "$cmd" in
     fi
     s="$(state)"
     case "$s" in
-      running) echo "ok|Running ($(ip_of))" ;;
+      running)
+        if [[ -z "$(virsh domifaddr "$VM" --source lease 2>/dev/null | grep ipv4)" ]]; then echo "warn|Running, no network address yet"; else echo "ok|Running ($(ip_of))"; fi ;;
       "shut off") if [[ "$(cat "$DESIRED" 2>/dev/null)" == stopped ]]; then echo "warn|Stopped"; else echo "error|Stopped (should be running)"; fi ;;
       *) echo "warn|${s:-Unknown}" ;;
     esac

@@ -115,6 +115,12 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now homelab-libvirt-fw.service >/dev/null 2>&1 || true
 
 # ---- 3. Official Home Assistant OS image -------------------------------------------------------------------------------
+if [[ "${HAOS_RECREATE:-0}" == 1 ]] && sudo virsh dominfo "$VM" >/dev/null 2>&1; then
+  echo "$(T '  HAOS_RECREATE=1: mevcut VM siliniyor (Home Assistant verisi gider).' '  HAOS_RECREATE=1: deleting the existing VM (its Home Assistant data is lost).')"
+  sudo virsh destroy "$VM" >/dev/null 2>&1 || true
+  sudo virsh undefine "$VM" --nvram >/dev/null 2>&1 || sudo virsh undefine "$VM" >/dev/null 2>&1 || true
+  sudo rm -f "$DISK"
+fi
 if ! sudo virsh dominfo "$VM" >/dev/null 2>&1; then
   WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
   echo "$(T '  Resmi Home Assistant OS imajı aranıyor...' '  Looking up the official Home Assistant OS image...')"
@@ -169,7 +175,8 @@ PY
 
   # ---- 4. Create the VM --------------------------------------------------------------------------------------------
   echo "$(T '  VM oluşturuluyor: ' '  Creating the VM: ')${VM_CPU} vCPU, ${VM_RAM} MB RAM, ${VM_DISK_GB} GB"
-  BOOT=uefi; [[ "$HAOS_ARCH" == aarch64 ]] && BOOT=uefi
+  # UEFI with Secure Boot and enrolled keys OFF: the Home Assistant OS boot loader is not signed for them and would never start.
+  BOOT="uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=no,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=no"
   sudo virt-install --name "$VM" --memory "$VM_RAM" --vcpus "$VM_CPU" --cpu host-passthrough \
     --machine q35 --os-variant generic --import --boot "$BOOT" \
     --disk "path=$DISK,format=qcow2,bus=virtio" \
@@ -225,6 +232,10 @@ for _ in $(seq 1 24); do
   if [[ -n "$VM_IP" ]] && curl -s -o /dev/null --max-time 3 "http://$VM_IP:8123/"; then UP=yes; break; fi
   sleep 10
 done
+LEASE="$(sudo virsh domifaddr "$VM" --source lease 2>/dev/null | grep -c ipv4 || true)"
+if [[ "$UP" != yes && "${LEASE:-0}" == 0 ]]; then
+  echo "  ! $(T 'VM ağdan adres alamadı (açılmamış olabilir). Konsolu gör: sudo virsh console homeassistant (çıkış: Ctrl+])' 'The VM got no network address (it may not have booted). See the console: sudo virsh console homeassistant (exit: Ctrl+])')"
+fi
 if [[ "$UP" == yes ]]; then
   echo "$(T '  Home Assistant yanıt veriyor: http://<bu-bilgisayar>:8123' '  Home Assistant is answering: http://<this-computer>:8123')"
 else

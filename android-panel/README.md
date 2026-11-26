@@ -1,10 +1,11 @@
 # HomeLab Panel (Android)
 
-Eski bir Android telefonu HomeLab sunucusunun duvar/masa paneline çeviren uygulama. [PhoneBox](https://github.com/ersinkoc/phonebox) (MIT, © Ersin KOÇ) 0.9.27 sürümünden türetilmiştir; lisans: `third-party/PhoneBox-MIT-LICENSE.txt` (depo kökü).
+The app that turns an old Android phone into a wall/desk panel for the HomeLab server. Licence: MIT (see the root `LICENSE`).
 
-- Uygulama adı "HomeLab Panel", paket `net.homelab.panel`; Türkçe ve İngilizce.
-- Widget'lar: Docker (aç/kapat), push, inbox, sistem, saat, hava, takvim ve HomeLab ayar sayfası. Kamera, ses/dikte, fotoğraf, RSS, konsol ve Steam gibi kullanılmayan parçalar çıkarıldı.
-- Kartlara dokununca büyük grafik penceresi, HomeLab uyarıları için büyük uyarı penceresi, titreşim/ses ayarları.
-- Sayfalar arasında kaydırma listelerin üstünden de çalışır; alttaki noktaya dokununca o sayfaya geçilir.
+- App name "HomeLab Panel", package `net.homelab.panel`. The app is in English by default; another language is used only if you choose it.
+- Widgets: Docker (start/stop), push, inbox, system, clock, weather, calendar and the HomeLab settings page. Unused parts such as camera, audio/dictation, photos, RSS, console and Steam were removed.
+- While the computer cannot be reached, the app shows a "Not Connected" screen.
+- Tapping a card opens a large chart; a large alert window shows HomeLab alerts; vibration and sound can be set.
+- Swiping between pages also works over lists; tapping the dot at the bottom jumps to that page.
 
-Derleme: GitHub > Actions > build-apk > Run workflow, sonra `homelab-panel-apk` dosyasını indir.
+Build: GitHub > Actions > build-apk > Run workflow, then download the `homelab-panel-apk` file.

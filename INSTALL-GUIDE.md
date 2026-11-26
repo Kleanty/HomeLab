@@ -20,7 +20,7 @@ This guide is for installing the HomeLab package **after Linux Mint has been ins
 - A username and a strong **password of at least 14 characters** for the HomeLab settings page login.
 - A username and password you will use (the same password for everything, including Samba).
 - If you want Restic automatic backup, an external disk separate from the system disk. The backup setup can be postponed.
-- At the start of the install you are first asked for a language, then a username and a password. The password is entered twice; if it is wrong you are asked again. There is no other yes/no question.
+- At the start of the install you are asked for the language (1 English, 2 Türkçe), then a username and a password (entered twice; if it is wrong you are asked again), then one yes/no question: whether to set up the Home Assistant VM (default yes; `HL_HAOS=no` skips it). Nothing else is asked.
 
 > Because a clean install is the target, there is no update scenario that preserves existing system data. Choosing the wrong disk during the Linux Mint install may erase the data on that disk.
 
@@ -30,18 +30,24 @@ Extract the ZIP into a folder on the Linux Mint desktop. The files in the archiv
 
 ```text
 HomeLab/
-├── KUR.sh
+├── KUR.sh                      (the installer; start this)
+├── KALDIR.sh                   (guided uninstall)
+├── TANI.sh                     (diagnostics)
 ├── lang.sh
-├── KURULUM-REHBERI.md
-├── KALDIR.sh
-├── TANI.sh
+├── setup-haos-vm.sh            (Home Assistant OS virtual machine)
+├── homelab-haos                (manage the Home Assistant VM)
 ├── homelab-docker-lan-only
 ├── homelab-notify
 ├── homelab-health-check
 ├── reset-web-login.sh
 ├── harden-ssh.sh
 ├── setup-restic-backup.sh
-└── configure-beszel-agent.sh
+├── configure-beszel-agent.sh
+├── README.md, README.tr.md, INSTALL-GUIDE.md, KURULUM-REHBERI.md
+├── agent/                      (HomeLab agent source, built by GitHub Actions)
+├── android-panel/              (HomeLab Panel app source)
+├── site/                       (GitHub Pages pairing page)
+├── docs/                       (screenshots)
 ```
 
 Do not copy `KUR.sh` on its own somewhere else; it needs to find the helper files next to it.
@@ -239,7 +245,14 @@ HomeLab can run the **official Home Assistant OS** as a virtual machine (KVM/QEM
 
 **Backup and restore:** the best backup is Home Assistant's own (*Settings > System > Backups*, keep a copy off the VM). `sudo homelab-haos backup` additionally makes a cold copy of the VM disk in `/srv/homelab/backups/haos` (newest 3 kept). To restore: stop the VM (`sudo homelab-haos stop`), copy the backup file over `/var/lib/libvirt/images/haos.qcow2` (`sudo cp --sparse=always <backup> /var/lib/libvirt/images/haos.qcow2`), then `sudo homelab-haos start`. Or reinstall with the setup script and restore the Home Assistant backup in its welcome screen.
 
-**Not tested here:** the VM creation was written and linted but could not be run in the development environment (no KVM). The "skipped" path was tested. Treat the first real run on your hardware as the test and send `~/HomeLab_Logs/kurulum-*.log` if it reports a problem.
+**Tested:** on an Intel i7-2600 with 8 GB RAM the VM boots, gets the address `192.168.122.10`, and Home Assistant answers on port 8123 from the home network. **Not tested:** USB adapters and Zigbee/Matter/Thread devices (none available), and VM restore.
+
+**Troubleshooting the VM:**
+- *The installer says the VM was not set up because of virtualization:* enable Intel VT-x / AMD-V (SVM) in BIOS/UEFI, then run `bash /srv/homelab/tools/setup-haos-vm.sh`.
+- *The VM is "running" but has no address (`sudo virsh net-dhcp-leases default` is empty, the panel says "no network address yet"):* look at the console with `sudo virsh console homeassistant` (exit with Ctrl+]). A UEFI menu means the VM did not boot; the installer creates the VM with Secure Boot and enrolled keys **off** for this reason. Recreate it with `HAOS_RECREATE=1 bash /srv/homelab/tools/setup-haos-vm.sh` (this deletes the VM and its Home Assistant data).
+- *No Home Assistant VM image is found:* a brand-new Home Assistant OS release may exist before the PC image is attached; the installer then uses the newest release that has it.
+- *Port 8123 does not answer yet:* the first start takes 10-20 minutes; test with `curl -s -o /dev/null -w "%{http_code}\n" http://SERVER-IP:8123` (a `302`/`307` answer means it is up).
+- *The phone Services page shows a Docker error:* the agent needs the `docker` group; log out and in (or reboot) once after the install.
 
 ## USB (ADB) connection: phone-side setup
 
