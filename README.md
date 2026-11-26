@@ -364,7 +364,3 @@ Repository: https://github.com/Kleanty/HomeLab
 1. The phone app is built by GitHub Actions: in the GitHub repository run **Actions > build-agent > Run workflow** (then build-apk). build-agent builds the agent and publishes it as the `v<version>` release. `KUR.sh` downloads the agent from there; without this step the agent is not installed (the install continues otherwise and warns at the end).
 2. **Actions > build-apk > Run workflow**: builds the APK. Without a signing key, the debug-signed APK appears only under **Artifacts** as `homelab-panel-apk`; it is not attached to the release. For permanent signing add `HOMELAB_KEYSTORE_BASE64`, `HOMELAB_STORE_PASSWORD`, `HOMELAB_KEY_ALIAS` and `HOMELAB_KEY_PASSWORD` under Settings > Secrets and variables > Actions; in that case `HomeLab-<version>.apk` and `SHA256SUMS-<version>.txt` are attached to the `v<version>` release. Do not lose or change the signing key: if it changes you must uninstall the app on the phone and install it again. Send the APK to the phone and install it ("install from unknown sources" permission is required).
 3. Install the agent and the APK from the same version (the pairing link changed: an old APK does not recognise the new QR). Connect the phone by USB (USB debugging turned on in developer options) or by Wi-Fi (the "Pair phone over Wi-Fi" QR on the settings page).
-
-## Credits and licences
-
-HomeLab is released under the **MIT licence** (see [`LICENSE`](LICENSE)). Third-party component notices are in `agent/HomeLab.Agent/THIRD-PARTY-NOTICES.txt`.
