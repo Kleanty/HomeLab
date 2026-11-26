@@ -730,7 +730,8 @@ if [[ ! -f "$STACKS/cloud/compose.yaml" ]]; then
 if [[ "$ACCOUNT_PW" != *"'"* && "$ACCOUNT_USER" =~ ^[A-Za-z0-9._-]+$ ]]; then
   (umask 077; printf "FILEBROWSER_ADMIN_PASSWORD='%s'\n" "$ACCOUNT_PW" | sudo tee "$STACKS/cloud/filebrowser.env" >/dev/null)
   sudo chmod 600 "$STACKS/cloud/filebrowser.env"
-  printf 'auth:\n  adminUsername: %s\n' "$ACCOUNT_USER" | sudo tee "$BASE/appdata/filebrowser/config.yaml" >/dev/null
+  # Minimal Quantum config: a files source (without one the server does not start) and the admin user name.
+  printf 'server:\n  sources:\n    - path: "/folder"\n      name: "Files"\nauth:\n  adminUsername: %s\n  methods:\n    password:\n      enabled: true\n' "$ACCOUNT_USER" | sudo tee "$BASE/appdata/filebrowser/config.yaml" >/dev/null
   FB_LOGIN_SET=yes
 else
   : | sudo tee "$STACKS/cloud/filebrowser.env" >/dev/null
@@ -1184,10 +1185,27 @@ if sudo test -f /etc/homelab-installer/ntfy.env; then
   done < <(sudo cat /etc/homelab-installer/ntfy.env)
   NTFY_URL_S="http://$SERVER_IP:2586"
 fi
+# Safety net: if File Browser keeps restarting with the custom config, fall back to its defaults (user admin, the same password)
+FB_LOGIN_USER="$ACCOUNT_USER"
 if [[ "$FB_LOGIN_SET" == yes ]]; then
-  FB_INFO="$(T "kullanıcı: $ACCOUNT_USER   parola: aynı" "user: $ACCOUNT_USER   password: same")"
+  sleep 6
+  if [[ "$(sudo docker inspect -f '{{.State.Running}} {{.State.Restarting}}' filebrowser 2>/dev/null)" != "true false" ]]; then
+    printf 'server:\n  sources:\n    - path: "/folder"\n      name: "Files"\n' | sudo tee "$BASE/appdata/filebrowser/config.yaml" >/dev/null
+    sudo docker restart filebrowser >/dev/null 2>&1 || true
+    sleep 6
+    FB_LOGIN_USER="admin"
+    if [[ "$(sudo docker inspect -f '{{.State.Running}} {{.State.Restarting}}' filebrowser 2>/dev/null)" != "true false" ]]; then
+      FB_LOGIN_SET=no
+      INSTALL_WARNINGS+=("$(T 'File Browser başlamıyor: sudo docker logs filebrowser' 'File Browser does not start: sudo docker logs filebrowser')")
+    else
+      INSTALL_WARNINGS+=("$(T 'File Browser özel ayarla açılmadı; varsayılana dönüldü: kullanıcı admin, parola aynı' 'File Browser would not start with the custom settings; using defaults: user admin, same password')")
+    fi
+  fi
+fi
+if [[ "$FB_LOGIN_SET" == yes ]]; then
+  FB_INFO="$(T "kullanıcı: $FB_LOGIN_USER   parola: aynı" "user: $FB_LOGIN_USER   password: same")"
 else
-  FB_INFO="user: admin   initial password: sudo docker logs filebrowser 2>&1 | grep -i password"
+  FB_INFO="$(T "açılmadı: sudo docker logs filebrowser" "not running: sudo docker logs filebrowser")"
 fi
 (
   umask 077

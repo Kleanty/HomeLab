@@ -10,21 +10,16 @@ Bu paket, **Linux Mint 22.x Cinnamon 64-bit (Ubuntu 24.04 / noble, amd64)** kuru
 
 ## Ekran görüntüleri
 
-Aşağıdakiler demo verileriyle alınmış örnek görüntülerdir.
-
-| | |
+| ![Home](docs/screenshots/home.png) | ![Services](docs/screenshots/services.png) |
 |---|---|
-| ![HomeLab sayfası](docs/screenshots/panel-1-homelab.png) | ![Servisler](docs/screenshots/panel-2-servisler.png) |
-| ![Uyarılar](docs/screenshots/panel-3-uyarilar.png) | ![Büyük grafik penceresi](docs/screenshots/panel-6-grafik.png) |
-| ![Uyarı penceresi](docs/screenshots/panel-7-uyari-penceresi.png) | ![Ayarlar sayfası](docs/screenshots/panel-5-ayarlar.png) |
+| ![System](docs/screenshots/system.png) | ![Shortcuts](docs/screenshots/shortcuts.png) |
+| ![Alerts](docs/screenshots/alerts.png) | ![Not connected](docs/screenshots/not-connected.png) |
 
-Sunucudaki ayar sayfası (`http://127.0.0.1:8765`, sunucunun kendi tarayıcısında açılır; kurulumda seçtiğin kullanıcı adı ve parolayı sorar): servisleri aç/kapat anahtarıyla yönetirsin.
-
-![Servisleri aç/kapat](docs/screenshots/ayar-servisler.png)
+![Settings page](docs/screenshots/settings.png)
 
 ## Test durumu ve lisans
 
-Kurulum Linux Mint 22.x üzerinde gerçek bir makinede test edilmiştir (RustDesk dahil). Kendi donanımında ilk kurulumdan sonra `bash TANI.sh` ile durumu kontrol et.
+Gerçek makinede test edildi (Intel Core i7-2600, 8 GB RAM, Linux Mint 22.x): kurulum adımları, ayar sayfası girişi, telefon uygulaması (Wi-Fi ve USB eşleştirme), File Browser girişi ve Home Assistant OS sanal makinesi (açılır, adres alır, 8123 portunda yanıt verir). **Henüz doğrulanmadı:** bu son paketle baştan sona tam sıfır kurulum, Zigbee/Matter/Thread donanımı ve kendi diskinde Restic geri yükleme. Kendi donanımında ilk kurulumdan sonra `bash TANI.sh` ile durumu kontrol et.
 
 Bu proje [MIT Lisansı](LICENSE) ile paylaşılır. Yazılım "olduğu gibi" sunulur; kullanım sorumluluğu sana aittir.
 
@@ -33,6 +28,7 @@ Bu proje [MIT Lisansı](LICENSE) ile paylaşılır. Yazılım "olduğu gibi" sun
 ### Sistem paketleri ve servisleri
 
 - Docker Engine, Docker Compose ve Buildx
+- KVM/QEMU/libvirt ve resmi Home Assistant OS sanal makinesi (isteğe bağlı; aşağıda "Home Assistant OS sanal makinesi" bölümüne bak)
 - OpenSSH Server
 - Samba dosya paylaşımı
 - Syncthing
@@ -61,6 +57,7 @@ Bu proje [MIT Lisansı](LICENSE) ile paylaşılır. Yazılım "olduğu gibi" sun
 | Scrutiny | `http://SUNUCU-IP:8081` | HDD/SSD/NVMe SMART sağlık takibi |
 | File Browser | `http://SUNUCU-IP:8080` | Dosya arayüzü |
 | n8n | `http://SUNUCU-IP:5678` | Otomasyon |
+| Home Assistant (VM) | `http://SUNUCU-IP:8123` | KVM sanal makinesinde resmi Home Assistant OS (isteğe bağlı, yalnızca ev ağı); `sudo homelab-haos` ile yönetilir |
 | Ollama API | `http://127.0.0.1:11434` | Yalnızca sunucunun localhost adresi; Qwen modeli RAM/disk kontrolünden sonra otomatik indirilir |
 | Kendi web siten (Caddy) | `http://127.0.0.1:8088` | Kendi siteni koyman için boş yer tutucu sayfa; Caddyfile/compose portunu değiştirmedikçe yalnızca 127.0.0.1'de dinler; alan adı/HTTPS daha sonra yapılandırılır |
 | AdGuard Home | IP'ye göre `:3000`, sonra `:3002`; DNS `:53` | İsteğe bağlı; yalnızca seçilen LAN IP'sine bağlanır |
@@ -288,7 +285,14 @@ HomeLab, **resmi Home Assistant OS**'u Docker servislerinin yanında sanal makin
 
 **Yedek ve geri yükleme:** en iyi yedek Home Assistant'ın kendi yedeğidir (*Ayarlar > Sistem > Yedeklemeler*; bir kopyayı VM dışında tut). `sudo homelab-haos backup` ayrıca VM diskinin soğuk kopyasını `/srv/homelab/backups/haos` içine alır (son 3 kopya tutulur). Geri yüklemek için: VM'i durdur (`sudo homelab-haos stop`), yedek dosyasını `/var/lib/libvirt/images/haos.qcow2` üzerine kopyala (`sudo cp --sparse=always <yedek> /var/lib/libvirt/images/haos.qcow2`), sonra `sudo homelab-haos start`. Ya da kurulum betiğiyle yeniden kurup Home Assistant yedeğini karşılama ekranından geri yükle.
 
-**Burada test edilmedi:** VM oluşturma yazıldı ve statik denetimden geçti ama geliştirme ortamında (KVM yok) çalıştırılamadı. "Atlandı" yolu test edildi. Kendi donanımında ilk çalıştırma test sayılır; sorun bildirirse `~/HomeLab_Logs/kurulum-*.log` dosyasını gönder.
+**Test edildi:** Intel i7-2600 ve 8 GB RAM üzerinde VM açılır, `192.168.122.10` adresini alır ve Home Assistant ev ağından 8123 portunda yanıt verir. **Test edilmedi:** USB adaptörler ve Zigbee/Matter/Thread cihazları (elde yok) ve VM geri yükleme.
+
+**VM sorun giderme:**
+- *Kurulum "sanallaştırma" yüzünden VM kurulmadı diyor:* BIOS/UEFI içinde Intel VT-x / AMD-V (SVM) seçeneğini aç, sonra `bash /srv/homelab/tools/setup-haos-vm.sh` çalıştır.
+- *VM "running" ama adres yok (`sudo virsh net-dhcp-leases default` boş, panelde "no network address yet"):* konsola bak: `sudo virsh console homeassistant` (çıkış: Ctrl+]). UEFI menüsü görüyorsan VM açılmamıştır; kurulum bu yüzden VM'i Secure Boot ve kayıtlı anahtarlar **kapalı** oluşturur. `HAOS_RECREATE=1 bash /srv/homelab/tools/setup-haos-vm.sh` ile yeniden oluştur (VM ve Home Assistant verisi silinir).
+- *Home Assistant imajı bulunamadı:* yepyeni bir Home Assistant OS sürümünde PC imajı birkaç saat sonra eklenebilir; kurulum o zaman imajı olan en yeni sürümü kullanır.
+- *8123 portu henüz yanıt vermiyor:* ilk açılış 10-20 dakika sürer; `curl -s -o /dev/null -w "%{http_code}\n" http://SUNUCU-IP:8123` ile dene (`302`/`307` cevabı açık demektir).
+- *Telefon Servisler sayfasında Docker hatası var:* ajanın `docker` grubuna ihtiyacı var; kurulumdan sonra bir kez oturumu kapatıp aç (veya yeniden başlat).
 
 ## USB (ADB) bağlantısı: telefon tarafı kurulumu
 
@@ -363,4 +367,4 @@ Depo: https://github.com/Kleanty/HomeLab
 
 ## Teşekkür ve lisanslar
 
-HomeLab ajanı ve telefon uygulaması, [PhoneBox](https://github.com/ersinkoc/phonebox) projesinin (MIT, © Ersin KOÇ) 0.9.27 sürümünden türetilmiştir; lisans metni `third-party/PhoneBox-MIT-LICENSE.txt` dosyasındadır, üçüncü taraf bileşen bildirimleri `agent/HomeLab.Agent/THIRD-PARTY-NOTICES.txt` içindedir. Diğer kurulan yazılımlar (Docker, AdGuard Home, Beszel, Uptime Kuma, Dockge, n8n, Syncthing, Tailscale, RustDesk vb.) kendi lisanslarıyla gelir. Bu depodaki özgün kısımlar [MIT](LICENSE) ile paylaşılır.
+HomeLab **MIT lisansı** altında yayımlanır ([`LICENSE`](LICENSE)). Üçüncü taraf bileşen bildirimleri `agent/HomeLab.Agent/THIRD-PARTY-NOTICES.txt` dosyasındadır.

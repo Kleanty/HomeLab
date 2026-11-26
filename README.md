@@ -10,21 +10,16 @@ This package turns a fresh **Linux Mint 22.x Cinnamon 64-bit (Ubuntu 24.04 / nob
 
 ## Screenshots
 
-The following are example images taken with demo data.
-
-| | |
+| ![Home](docs/screenshots/home.png) | ![Services](docs/screenshots/services.png) |
 |---|---|
-| ![HomeLab page](docs/screenshots/panel-1-homelab.png) | ![Services](docs/screenshots/panel-2-servisler.png) |
-| ![Alerts](docs/screenshots/panel-3-uyarilar.png) | ![Large chart window](docs/screenshots/panel-6-grafik.png) |
-| ![Alert window](docs/screenshots/panel-7-uyari-penceresi.png) | ![Settings page](docs/screenshots/panel-5-ayarlar.png) |
+| ![System](docs/screenshots/system.png) | ![Shortcuts](docs/screenshots/shortcuts.png) |
+| ![Alerts](docs/screenshots/alerts.png) | ![Not connected](docs/screenshots/not-connected.png) |
 
-The settings page on the server (`http://127.0.0.1:8765`, opened in the server's own browser; it asks for the username and password you chose during the installation): you manage services with on/off switches.
-
-![Service on/off switches](docs/screenshots/ayar-servisler.png)
+![Settings page](docs/screenshots/settings.png)
 
 ## Test status and licence
 
-The installation has been tested on a real machine running Linux Mint 22.x (including RustDesk). After the first install on your own hardware, check the state with `bash TANI.sh`.
+Tested on a real machine (Intel Core i7-2600, 8 GB RAM, Linux Mint 22.x): the install steps, the settings page login, the phone app (Wi-Fi and USB pairing), File Browser login, and the Home Assistant OS virtual machine (boots, gets an address, answers on port 8123). **Not yet verified:** a complete fresh install end to end with this final package, Zigbee/Matter/Thread hardware, and a Restic restore on your own disk. After the first install on your own hardware, check the state with `bash TANI.sh`.
 
 This project is shared under the [MIT Licence](LICENSE). The software is provided "as is"; you use it at your own responsibility.
 
@@ -33,6 +28,7 @@ This project is shared under the [MIT Licence](LICENSE). The software is provide
 ### System packages and services
 
 - Docker Engine, Docker Compose and Buildx
+- KVM/QEMU/libvirt and the official Home Assistant OS virtual machine (optional; see "Home Assistant OS virtual machine" below)
 - OpenSSH Server
 - Samba file sharing
 - Syncthing
@@ -61,6 +57,7 @@ This project is shared under the [MIT Licence](LICENSE). The software is provide
 | Scrutiny | `http://SERVER-IP:8081` | HDD/SSD/NVMe SMART health tracking |
 | File Browser | `http://SERVER-IP:8080` | File interface |
 | n8n | `http://SERVER-IP:5678` | Automation |
+| Home Assistant (VM) | `http://SERVER-IP:8123` | Official Home Assistant OS in a KVM virtual machine (optional, home network only); manage with `sudo homelab-haos` |
 | Ollama API | `http://127.0.0.1:11434` | Server's localhost only; the Qwen model is downloaded automatically after the RAM/disk check |
 | Your own website (Caddy) | `http://127.0.0.1:8088` | Empty placeholder page that you replace with your own site; listens on 127.0.0.1 only unless you change the Caddyfile/compose port; domain/HTTPS is configured later |
 | AdGuard Home | `:3000` by IP, then `:3002`; DNS `:53` | Optional; binds only to the selected LAN IP |
@@ -288,7 +285,14 @@ HomeLab can run the **official Home Assistant OS** as a virtual machine (KVM/QEM
 
 **Backup and restore:** the best backup is Home Assistant's own (*Settings > System > Backups*, keep a copy off the VM). `sudo homelab-haos backup` additionally makes a cold copy of the VM disk in `/srv/homelab/backups/haos` (newest 3 kept). To restore: stop the VM (`sudo homelab-haos stop`), copy the backup file over `/var/lib/libvirt/images/haos.qcow2` (`sudo cp --sparse=always <backup> /var/lib/libvirt/images/haos.qcow2`), then `sudo homelab-haos start`. Or reinstall with the setup script and restore the Home Assistant backup in its welcome screen.
 
-**Not tested here:** the VM creation was written and linted but could not be run in the development environment (no KVM). The "skipped" path was tested. Treat the first real run on your hardware as the test and send `~/HomeLab_Logs/kurulum-*.log` if it reports a problem.
+**Tested:** on an Intel i7-2600 with 8 GB RAM the VM boots, gets the address `192.168.122.10`, and Home Assistant answers on port 8123 from the home network. **Not tested:** USB adapters and Zigbee/Matter/Thread devices (none available), and VM restore.
+
+**Troubleshooting the VM:**
+- *The installer says the VM was not set up because of virtualization:* enable Intel VT-x / AMD-V (SVM) in BIOS/UEFI, then run `bash /srv/homelab/tools/setup-haos-vm.sh`.
+- *The VM is "running" but has no address (`sudo virsh net-dhcp-leases default` is empty, the panel says "no network address yet"):* look at the console with `sudo virsh console homeassistant` (exit with Ctrl+]). A UEFI menu means the VM did not boot; the installer creates the VM with Secure Boot and enrolled keys **off** for this reason. Recreate it with `HAOS_RECREATE=1 bash /srv/homelab/tools/setup-haos-vm.sh` (this deletes the VM and its Home Assistant data).
+- *No Home Assistant VM image is found:* a brand-new Home Assistant OS release may exist before the PC image is attached; the installer then uses the newest release that has it.
+- *Port 8123 does not answer yet:* the first start takes 10-20 minutes; test with `curl -s -o /dev/null -w "%{http_code}\n" http://SERVER-IP:8123` (a `302`/`307` answer means it is up).
+- *The phone Services page shows a Docker error:* the agent needs the `docker` group; log out and in (or reboot) once after the install.
 
 ## USB (ADB) connection: phone-side setup
 
@@ -363,4 +367,4 @@ Repository: https://github.com/Kleanty/HomeLab
 
 ## Credits and licences
 
-The HomeLab agent and phone app are derived from version 0.9.27 of the [PhoneBox](https://github.com/ersinkoc/phonebox) project (MIT, © Ersin KOÇ); the licence text is in `third-party/PhoneBox-MIT-LICENSE.txt`, and third-party component notices are in `agent/HomeLab.Agent/THIRD-PARTY-NOTICES.txt`. Other installed software (Docker, AdGuard Home, Beszel, Uptime Kuma, Dockge, n8n, Syncthing, Tailscale, RustDesk, etc.) comes under its own licences. The original parts in this repository are shared under the [MIT](LICENSE) licence.
+HomeLab is released under the **MIT licence** (see [`LICENSE`](LICENSE)). Third-party component notices are in `agent/HomeLab.Agent/THIRD-PARTY-NOTICES.txt`.

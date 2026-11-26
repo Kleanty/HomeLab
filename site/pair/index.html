@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
-<title>HomeLab eşleştirme</title>
+<title>HomeLab pairing</title>
 <link rel="icon" href="../favicon.ico">
 <style>
 :root { --bg: #07090d; --panel: #10141b; --line: #232a35; --text: #eef2f6; --muted: #8a94a3; --accent: #2dd4bf; --warn: #f59e0b; color-scheme: dark; }
@@ -27,32 +27,32 @@ code { font-size: 13px; }
 </head>
 <body>
 <div class="wrap">
-  <header><img src="../favicon.ico" alt=""><h1>HomeLab eşleştirme</h1></header>
+  <header><img src="../favicon.ico" alt=""><h1>HomeLab pairing</h1></header>
 
   <div class="card" id="ok" hidden>
-    <h2>Bu telefon bir bilgisayarla eşleşsin mi?</h2>
-    <p class="muted">“<span id="pc"></span>” — <span id="hosts"></span>. Bilgisayardaki eşleştirme penceresinde
-      <b id="check"></b> kodunu gördüysen ve eşleştirmeyi sen başlattıysan devam et.</p>
-    <a class="btn primary" id="open" href="#">HomeLab'te aç</a>
-    <p class="muted" id="plainWrap" hidden style="margin-top:10px">Mağaza mı açıldı? Bazı tarayıcılar uygulama bağlantılarını oraya yollar;
-      <a id="plain" href="#" style="color:var(--accent)">eşleştirme bağlantısını doğrudan aç</a>. Android hangi uygulamayla açılacağını sorarsa
-      HomeLab'i seç: bu bağlantıları kabul eden başka bir uygulama eşleştirme kodunu alırdı.</p>
-    <p class="muted" style="margin-top:10px">Eşleştirme kodu 5 dakika boyunca bir kez çalışır. Süresi dolduysa eşleştirmeyi bilgisayarda yeniden başlat.</p>
+    <h2>Pair this phone with a computer?</h2>
+    <p class="muted">“<span id="pc"></span>” — <span id="hosts"></span>. Continue only if the pairing window on the computer shows the code
+      <b id="check"></b> and you started the pairing yourself.</p>
+    <a class="btn primary" id="open" href="#">Open in HomeLab</a>
+    <p class="muted" id="plainWrap" hidden style="margin-top:10px">Did an app store open? Some browsers send app links there;
+      <a id="plain" href="#" style="color:var(--accent)">open the pairing link directly</a>. If Android asks which app to use,
+      choose HomeLab: another app that accepts these links would receive the pairing code.</p>
+    <p class="muted" style="margin-top:10px">The pairing code works once, for 5 minutes. If it has expired, start the pairing again on the computer.</p>
   </div>
 
   <div class="card" id="bad" hidden>
-    <h2 class="warn">Bu eşleştirme bağlantısı eksik</h2>
-    <p class="muted">QR kodunu bilgisayardaki HomeLab ayar sayfasından yeniden okut: Genel › Wi-Fi &amp; Tailscale › Telefonu Wi-Fi ile eşleştir.</p>
+    <h2 class="warn">This pairing link is incomplete</h2>
+    <p class="muted">Scan the QR code again from the HomeLab settings page on the computer: General › Wi-Fi &amp; Tailscale › Pair a phone over Wi-Fi.</p>
   </div>
 
   <div class="card">
-    <h2>HomeLab uygulaması yok mu?</h2>
-    <p class="muted">Önce uygulamayı kur (Android 5.0 ve üstü), sonra QR kodunu yeniden okut.</p>
-    <a class="btn secondary" href="https://github.com/Kleanty/HomeLab">Uygulamayı edin</a>
+    <h2>Don't have the HomeLab app?</h2>
+    <p class="muted">Install the app first (Android 5.0 or later), then scan the QR code again.</p>
+    <a class="btn secondary" href="https://github.com/Kleanty/HomeLab">Get the app</a>
   </div>
 
-  <p class="muted">Bu sayfa yalnızca tarayıcında çalışır. Eşleştirme bilgileri bağlantıdaki <code>#</code> işaretinden sonraki kısımdadır;
-    tarayıcılar bunu sunucuya göndermez ve sayfa onu geçmişinden siler.</p>
+  <p class="muted">This page runs only in your browser. The pairing details are in the part of the link after the <code>#</code>;
+    browsers do not send that to a server, and the page removes it from the history.</p>
 </div>
 <script>
 (() => {
@@ -74,7 +74,7 @@ code { font-size: 13px; }
   if (!ok) { document.getElementById('bad').hidden = false; return; }
   p.set('h', hosts.join(','));
   p.set('port', String(port));
-  document.getElementById('pc').textContent = (p.get('pc') || 'bilgisayarın').slice(0, 64);
+  document.getElementById('pc').textContent = (p.get('pc') || 'your computer').slice(0, 64);
   document.getElementById('hosts').textContent = hosts.join(', ') + ' (port ' + port + ')';
   document.getElementById('check').textContent = (p.get('fp').slice(0, 4) + ' ' + p.get('fp').slice(4, 8)).toUpperCase();
   // Chrome on Android opens intent:// links in the app and falls back to the download page when it is not installed;
