@@ -17,6 +17,8 @@ else
   T() { if [[ "${HL_LANG:-en}" == tr ]]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
 fi
 hl_lang_init
+type hl_pause >/dev/null 2>&1 || hl_pause() { [[ -t 0 ]] || return 0; printf '\n%s ' "$(T 'Kapatmak için Enter tuşuna bas...' 'Press Enter to close...')" >&2; read -r _ || true; }
+trap hl_pause EXIT
 if [[ $EUID -eq 0 ]]; then
   echo "$(T 'Bu aracı sudo ile değil normal kullanıcıyla çalıştır: bash TANI.sh' 'Run this tool as a normal user, not with sudo: bash TANI.sh')" >&2
   exit 1

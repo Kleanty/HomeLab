@@ -23,3 +23,10 @@ hl_lang_save() {
 T() {
   if [[ "${HL_LANG:-en}" == tr ]]; then printf '%s' "$1"; else printf '%s' "$2"; fi
 }
+
+# Keeps the terminal window open when a script was started by double-click (so the output can be read).
+hl_pause() {
+  [[ -t 0 ]] || return 0
+  printf '\n%s ' "$(T 'Kapatmak için Enter tuşuna bas...' 'Press Enter to close...')" >&2
+  read -r _ || true
+}

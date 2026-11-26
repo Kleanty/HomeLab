@@ -5,6 +5,7 @@ set -uo pipefail
 HL_LANG="$(head -c 2 /etc/homelab-installer/lang 2>/dev/null || true)"
 case "$HL_LANG" in tr|en) ;; *) HL_LANG=en ;; esac
 export HL_LANG
+[[ $EUID -eq 0 ]] || exec sudo -n "$0" "$@"   # needs root for its state files; the installer sets up passwordless sudo only for the timers
 T() { if [[ "$HL_LANG" == tr ]]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
 STATE_DIR=/var/lib/homelab-installer
 STATE="$STATE_DIR/health-state"

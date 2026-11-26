@@ -137,7 +137,7 @@ hl_lang_save
 # Keep sudo from asking for the password again during the long installation.
 ( while true; do sudo -n true; sleep 50; done ) >/dev/null 2>&1 &
 SUDO_KEEPALIVE_PID=$!
-trap 'kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true; sudo -n rm -f /etc/apt/apt.conf.d/99homelab-lock-wait 2>/dev/null || true' EXIT
+trap 'kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true; sudo -n rm -f /etc/apt/apt.conf.d/99homelab-lock-wait 2>/dev/null || true; hl_pause' EXIT
 
 # The background automatic update (unattended-upgr) may hold the package lock; wait instead of failing.
 echo 'DPkg::Lock::Timeout "900";' | sudo tee /etc/apt/apt.conf.d/99homelab-lock-wait >/dev/null
@@ -396,6 +396,26 @@ EOF_PBUNIT
   fi
   rm -rf "$PB_TMP"
   if [[ "$HOMELAB_OK" == yes ]]; then
+    # Login for the settings page (same username and password as everything else). Written BEFORE the settings call below: an agent left from an earlier install may already require a login, and the call then needs the new one.
+    if HL_WEB_USER="$ACCOUNT_USER" HL_WEB_PW="$ACCOUNT_PW" HL_WEB_FILE="$HOME/.config/HomeLab/web-login" python3 -I - <<'PY_WEBLOGIN'
+import base64, hashlib, os, secrets
+user, pw, path = os.environ["HL_WEB_USER"], os.environ["HL_WEB_PW"], os.environ["HL_WEB_FILE"]
+salt, iterations = secrets.token_bytes(16), 600000
+digest = hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt, iterations, 32)
+b64 = lambda b: base64.b64encode(b).decode("ascii")
+line = "v1 %s %d %s %s\n" % (b64(user.encode("utf-8")), iterations, b64(salt), b64(digest))
+os.makedirs(os.path.dirname(path), exist_ok=True)
+tmp = path + ".tmp"
+fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w") as f:
+    f.write(line)
+os.replace(tmp, path)
+PY_WEBLOGIN
+    then
+      echo "$(T 'Ayar sayfası (127.0.0.1:8765) giriş şifresi ayarlandı: kullanıcı adı ve parola kurulumdakiyle aynı.' 'The settings page (127.0.0.1:8765) now asks for a login: the same username and password as the installation.')"
+    else
+      INSTALL_WARNINGS+=("$(T 'Ayar sayfası giriş şifresi yazılamadı; 127.0.0.1:8765 şifresiz açık kalır' 'Could not write the settings page login; 127.0.0.1:8765 stays open without a password')")
+    fi
     # Turn off automatic updates; on a first install, write pages suited to a server.
     if ! HL_LANG="$HL_LANG" PB_NEW="$HOMELAB_NEW" HL_WEB_USER="$ACCOUNT_USER" HL_WEB_PW="$ACCOUNT_PW" python3 -I - "$PB_URL" <<'PY_PBCFG'
 import json, os, sys, urllib.request
@@ -465,26 +485,6 @@ PY_PBCFG
       INSTALL_WARNINGS+=("$(T 'HomeLab ayarları yazılamadı; http://127.0.0.1:8765 > ayarlarında otomatik güncellemeyi kapat' 'Could not write the HomeLab settings; turn off automatic updates in the settings at http://127.0.0.1:8765')")
     else
       echo "$(T 'HomeLab ajanı çalışıyor; otomatik güncelleme kapatıldı.' 'The HomeLab agent is running; automatic updates were turned off.')"
-    fi
-    # Login for the settings page (same username and password as everything else). Written last, so the calls above need none.
-    if HL_WEB_USER="$ACCOUNT_USER" HL_WEB_PW="$ACCOUNT_PW" HL_WEB_FILE="$HOME/.config/HomeLab/web-login" python3 -I - <<'PY_WEBLOGIN'
-import base64, hashlib, os, secrets
-user, pw, path = os.environ["HL_WEB_USER"], os.environ["HL_WEB_PW"], os.environ["HL_WEB_FILE"]
-salt, iterations = secrets.token_bytes(16), 600000
-digest = hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt, iterations, 32)
-b64 = lambda b: base64.b64encode(b).decode("ascii")
-line = "v1 %s %d %s %s\n" % (b64(user.encode("utf-8")), iterations, b64(salt), b64(digest))
-os.makedirs(os.path.dirname(path), exist_ok=True)
-tmp = path + ".tmp"
-fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-with os.fdopen(fd, "w") as f:
-    f.write(line)
-os.replace(tmp, path)
-PY_WEBLOGIN
-    then
-      echo "$(T 'Ayar sayfası (127.0.0.1:8765) giriş şifresi ayarlandı: kullanıcı adı ve parola kurulumdakiyle aynı.' 'The settings page (127.0.0.1:8765) now asks for a login: the same username and password as the installation.')"
-    else
-      INSTALL_WARNINGS+=("$(T 'Ayar sayfası giriş şifresi yazılamadı; 127.0.0.1:8765 şifresiz açık kalır' 'Could not write the settings page login; 127.0.0.1:8765 stays open without a password')")
     fi
   fi
 fi
@@ -1176,7 +1176,7 @@ if sudo test -f /etc/homelab-installer/ntfy.env; then
   NTFY_URL_S="http://$SERVER_IP:2586"
 fi
 if [[ "$FB_LOGIN_SET" == yes ]]; then
-  FB_INFO="user: $ACCOUNT_USER   password: same"
+  FB_INFO="$(T "kullanıcı: $ACCOUNT_USER   parola: aynı" "user: $ACCOUNT_USER   password: same")"
 else
   FB_INFO="user: admin   initial password: sudo docker logs filebrowser 2>&1 | grep -i password"
 fi

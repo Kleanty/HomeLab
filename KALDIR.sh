@@ -17,6 +17,8 @@ else
   T() { if [[ "${HL_LANG:-en}" == tr ]]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
 fi
 hl_lang_init
+type hl_pause >/dev/null 2>&1 || hl_pause() { [[ -t 0 ]] || return 0; printf '\n%s ' "$(T 'Kapatmak için Enter tuşuna bas...' 'Press Enter to close...')" >&2; read -r _ || true; }
+trap hl_pause EXIT
 LOG_DIR="$HOME/HomeLab_Logs"
 mkdir -p "$LOG_DIR"
 chmod 0700 "$LOG_DIR"
