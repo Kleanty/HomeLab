@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Linux agent. Build: dotnet publish -f net10.0 -r linux-x64 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <!-- English only: no ICU needed, so minimal distributions work out of the box -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>HomeLabAgent</AssemblyName>
+    <RootNamespace>HomeLab.Agent</RootNamespace>
+    <Product>HomeLab</Product>
+    <Company>HomeLab</Company>
+    <Description>HomeLab agent: feeds the HomeLab Panel Android app over USB or Wi-Fi.</Description>
+    <Version>0.9.27</Version>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- QR codes for pairing a phone over Wi-Fi (settings page) -->
+    <PackageReference Include="QRCoder" Version="1.8.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- every release zip: it bundles the .NET runtime -->
+    <None Update="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="config.default.linux.json" LogicalName="config.default.linux.json" />
+    <EmbeddedResource Include="homelab.ico" LogicalName="homelab.ico" />
+    <EmbeddedResource Include="settings.html" LogicalName="settings.html" />
+    <EmbeddedResource Include="widgets.json" LogicalName="widgets.json" />
+    <EmbeddedResource Include="templates.json" LogicalName="templates.json" />
+    <!-- the phone's panel, served at /panel/ for the live preview in the layout editor -->
+    <EmbeddedResource Include="..\..\android-panel\app\src\main\assets\www\*.*" LogicalName="www/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\android-panel\app\src\main\assets\www\widgets\*.*" LogicalName="www/widgets/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HomeLab.Agent.Tests" />
+  </ItemGroup>
+</Project>

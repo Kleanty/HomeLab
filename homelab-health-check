@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# Runs every 10 minutes; notifies via ntfy when a new problem appears and when it is fixed (does not repeat alerts).
+set -uo pipefail
+# Language: read from the installer's saved choice; never prompts (runs from systemd timers).
+HL_LANG="$(head -c 2 /etc/homelab-installer/lang 2>/dev/null || true)"
+case "$HL_LANG" in tr|en) ;; *) HL_LANG=en ;; esac
+export HL_LANG
+[[ $EUID -eq 0 ]] || exec sudo -n "$0" "$@"   # needs root for its state files; the installer sets up passwordless sudo only for the timers
+T() { if [[ "$HL_LANG" == tr ]]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
+STATE_DIR=/var/lib/homelab-installer
+STATE="$STATE_DIR/health-state"
+NOTIFY=/usr/local/sbin/homelab-notify
+install -d -m 0700 "$STATE_DIR"
+declare -A NOW=()
+add_problem() { NOW["$1"]="$2"; }
+
+# 1) Disk usage
+declare -A SEEN_MOUNT=()
+MAX_USE=0; MAX_MP=/
+for MP in / /srv/homelab; do
+  TARGET="$(df -P "$MP" 2>/dev/null | awk 'NR==2 {print $6}')"
+  [[ -n "$TARGET" && -z "${SEEN_MOUNT[$TARGET]:-}" ]] || continue
+  SEEN_MOUNT["$TARGET"]=1
+  USE="$(df -P "$MP" 2>/dev/null | awk 'NR==2 {gsub("%","",$5); print $5}')"
+  if [[ "$USE" =~ ^[0-9]+$ ]] && ((USE > MAX_USE)); then MAX_USE=$USE; MAX_MP=$MP; fi
+  if [[ "$USE" =~ ^[0-9]+$ ]] && ((USE >= 90)); then add_problem "disk:$TARGET" "$(T "Disk %$USE dolu: $TARGET" "Disk $USE% full: $TARGET")"; fi
+done
+DISK_SIZE="$(df -P -BG "$MAX_MP" 2>/dev/null | awk 'NR==2 {gsub("G","",$2); gsub("G","",$3); print $3 " / " $2 " GB"}')"
+# 2) Failed systemd units
+while read -r UNIT; do
+  [[ -n "$UNIT" ]] && add_problem "unit:$UNIT" "$(T "Servis başarısız: $UNIT" "Service failed: $UNIT")"
+done < <(systemctl --failed --no-legend --plain 2>/dev/null | awk '{print $1}')
+# 3) Known containers are not running
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  for C in dockge beszel beszel-agent uptime-kuma scrutiny filebrowser ollama n8n caddy adguardhome ntfy; do
+    STATUS="$(docker inspect --format '{{.State.Status}}' "$C" 2>/dev/null || true)"
+    [[ -n "$STATUS" && "$STATUS" != running ]] && add_problem "container:$C" "$(T "Konteyner çalışmıyor: $C ($STATUS)" "Container not running: $C ($STATUS)")"
+  done
+fi
+# 4) Internet (ping) and responses of your own services
+PING_MS=""
+if command -v ping >/dev/null 2>&1; then
+  for HOST in 1.1.1.1 8.8.8.8; do
+    PING_MS="$(ping -n -q -c 3 -W 2 "$HOST" 2>/dev/null | awk -F'[/ =]+' '/^(rtt|round-trip)/ {print int($7)}')"
+    [[ -n "$PING_MS" ]] && break
+  done
+  if [[ -z "$PING_MS" ]]; then add_problem "internet:down" "$(T 'İnternet bağlantısı yok' 'No internet connection')"
+  elif ((PING_MS > 250)); then add_problem "internet:slow" "$(T "İnternet yavaş: ping $PING_MS ms" "Internet is slow: ping $PING_MS ms")"; fi
+fi
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  for SVC in dockge:5001 beszel:8090 uptime-kuma:3001 filebrowser:8080 n8n:5678 scrutiny:8081 caddy:8088 ntfy:2586; do
+    NAME="${SVC%%:*}"; PORT="${SVC##*:}"
+    [[ "$(docker inspect --format '{{.State.Status}}' "$NAME" 2>/dev/null || true)" == running ]] || continue
+    curl -s -o /dev/null --max-time 5 "http://127.0.0.1:$PORT/" || add_problem "service:$NAME" "$(T "Servis yanıt vermiyor: $NAME (:$PORT)" "Service not responding: $NAME (:$PORT)")"
+  done
+fi
+# 5) Backup older than 48 hours
+if [[ -f /etc/restic/homelab.env ]]; then
+  LAST="$(systemctl show homelab-restic-backup.service -p ExecMainExitTimestamp --value 2>/dev/null || true)"
+  if [[ -n "$LAST" ]]; then
+    LAST_EPOCH="$(date -d "$LAST" +%s 2>/dev/null || echo 0)"
+    if ((LAST_EPOCH > 0)) && (( $(date +%s) - LAST_EPOCH > 172800 )); then add_problem "backup:stale" "$(T "Son yedek 48 saatten eski ($LAST)" "Last backup is older than 48 hours ($LAST)")"; fi
+  fi
+fi
+
+# 6) Home Assistant VM stopped although it was not stopped on purpose
+if [[ -x /usr/local/sbin/homelab-haos ]]; then
+  HA_CHECK="$(/usr/local/sbin/homelab-haos brief 2>/dev/null || true)"
+  [[ "${HA_CHECK%%|*}" == error ]] && add_problem "haos:down" "Home Assistant VM: ${HA_CHECK#*|}"
+fi
+
+BACKUP_TEXT="$(T 'Kurulu değil' 'Not installed')"; BACKUP_LEVEL=""
+if [[ -f /etc/restic/homelab.env ]]; then
+  BACKUP_TEXT="$(T 'Zamanı bilinmiyor' 'Time unknown')"; BACKUP_LEVEL="warn"
+  if [[ -n "${LAST:-}" ]] && ((${LAST_EPOCH:-0} > 0)); then
+    AGE_H=$(( ($(date +%s) - LAST_EPOCH) / 3600 ))
+    BACKUP_TEXT="$(T "$AGE_H saat önce" "$AGE_H hours ago")"; BACKUP_LEVEL="ok"
+    (( AGE_H > 48 )) && BACKUP_LEVEL="error"
+  fi
+fi
+
+declare -A OLD=()
+if [[ -f "$STATE" ]]; then
+  while IFS='|' read -r KEY MSG; do [[ -n "$KEY" ]] && OLD["$KEY"]="$MSG"; done < "$STATE"
+fi
+declare -A NEW=()
+HISTORY="$STATE_DIR/health-history"   # epoch|AÇILDI|ÇÖZÜLDÜ|message (last 200 entries; event keys are internal identifiers)
+log_event() { printf '%s|%s|%s\n' "$(date +%s)" "$1" "$2" >> "$HISTORY"; }
+for KEY in "${!NOW[@]}"; do
+  if [[ -n "${OLD[$KEY]:-}" ]]; then
+    NEW["$KEY"]="${NOW[$KEY]}"
+  else
+    PRIO=4; [[ "$KEY" == internet:down || "$KEY" == service:* ]] && PRIO=5
+    if "$NOTIFY" "$(T 'HomeLab: sorun' 'HomeLab: problem')" "${NOW[$KEY]}" "$PRIO" warning; then
+      NEW["$KEY"]="${NOW[$KEY]}"; log_event AÇILDI "${NOW[$KEY]}"
+    fi   # if the notification was not delivered, do not record it; it will be retried on the next run
+  fi
+done
+for KEY in "${!OLD[@]}"; do
+  if [[ -z "${NOW[$KEY]:-}" ]]; then
+    if "$NOTIFY" "$(T 'HomeLab: düzeldi' 'HomeLab: resolved')" "${OLD[$KEY]} — $(T 'sorun giderildi' 'problem resolved')" 3 white_check_mark; then log_event ÇÖZÜLDÜ "${OLD[$KEY]}"; else NEW["$KEY"]="${OLD[$KEY]}"; fi
+  fi
+done
+if [[ -f "$HISTORY" ]]; then tail -n 200 "$HISTORY" > "$HISTORY.tmp" && mv -f "$HISTORY.tmp" "$HISTORY"; chmod 0600 "$HISTORY"; fi
+TMP="$(mktemp "$STATE_DIR/.health.XXXXXX")"
+for KEY in "${!NEW[@]}"; do printf '%s|%s\n' "$KEY" "${NEW[$KEY]}" >> "$TMP"; done
+chmod 0600 "$TMP"; mv -f "$TMP" "$STATE"
+
+# Status values for the HomeLab phone panel (skipped silently if there is no agent; values expire on their own after 30 minutes).
+push_phone() { # key JSON
+  curl -fsS --max-time 3 -H "Content-Type: application/json" -d "$2" "http://127.0.0.1:8765/api/push/$1?ttl=1800" >/dev/null 2>&1
+}
+if curl -fsS --max-time 2 http://127.0.0.1:8765/api/info >/dev/null 2>&1; then
+  PROBLEMS=${#NOW[@]}
+  DISK_LEVEL=ok; ((MAX_USE >= 80)) && DISK_LEVEL=warn; ((MAX_USE >= 90)) && DISK_LEVEL=error
+  HEALTH_TXT="$(T 'Sorun yok' 'No problems')"; HEALTH_LVL=ok
+  ((PROBLEMS > 0)) && { HEALTH_TXT="$PROBLEMS $(T 'sorun' 'problem(s)')"; HEALTH_LVL=error; }
+  NET_TXT="$(T 'Yok' 'None')"; NET_LVL=error
+  if [[ -n "$PING_MS" ]]; then NET_TXT="ping $PING_MS ms"; NET_LVL=ok; ((PING_MS > 250)) && NET_LVL=warn; fi
+  [[ -z "$PING_MS" ]] && ! command -v ping >/dev/null 2>&1 && { NET_TXT="$(T 'Ölçülemedi' 'Could not measure')"; NET_LVL=warn; }
+  CONT_TXT="$(T 'Okunamadı' 'Unreadable')"; CONT_LVL=warn; TS_TXT="$(T 'Kurulu değil' 'Not installed')"; TS_LVL=""
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    RUNNING="$(docker ps -q 2>/dev/null | wc -l)"
+    DOWN="$(docker ps -a --filter status=exited --filter status=dead --filter status=restarting --format '{{.Names}}' 2>/dev/null | paste -sd, - | cut -c1-60)"
+    CONT_TXT="$RUNNING $(T 'çalışıyor' 'running')"; CONT_LVL=ok
+    [[ -n "$DOWN" ]] && { CONT_TXT="$RUNNING $(T 'çalışıyor, kapalı' 'running, down'): $DOWN"; CONT_LVL=error; }
+  fi
+  if command -v tailscale >/dev/null 2>&1; then
+    TS_TXT="$(T 'Okunamadı' 'Unreadable')"; TS_LVL=warn
+    TS_OUT="$(tailscale status --json 2>/dev/null | python3 -c 'import json,os,sys
+try:
+    d=json.load(sys.stdin); n=sum(1 for p in (d.get("Peer") or {}).values() if p.get("Online"))
+    tr=os.environ.get("HL_LANG")=="tr"
+    up=("Bağlı, " if tr else "Connected, ") if d.get("BackendState")=="Running" else ("Bağlı değil, " if tr else "Not connected, ")
+    print(("ok|" if d.get("BackendState")=="Running" else "warn|")+up+str(n)+(" cihaz çevrimiçi" if tr else " device(s) online"))
+except Exception:
+    pass' || true)"
+    [[ -n "$TS_OUT" ]] && { TS_LVL="${TS_OUT%%|*}"; TS_TXT="${TS_OUT#*|}"; }
+  fi
+  HA_TXT="$(T 'Kurulu değil' 'Not installed')"; HA_LVL=""
+  if [[ -x /usr/local/sbin/homelab-haos ]]; then
+    HA_BRIEF="$(/usr/local/sbin/homelab-haos brief 2>/dev/null || true)"
+    if [[ -n "$HA_BRIEF" ]]; then HA_LVL="${HA_BRIEF%%|*}"; HA_TXT="${HA_BRIEF#*|}"; fi
+  fi
+  push_phone homelab-status "$(python3 -c 'import json,os,sys
+a=sys.argv[1:]
+tr=os.environ.get("HL_LANG")=="tr"
+names=["Durum","Konteynerler","Disk","İnternet","Son yedek","Tailscale","Home Assistant"] if tr else ["Status","Containers","Disk","Internet","Last backup","Tailscale","Home Assistant"]
+items=[]
+for i,n in enumerate(names):
+    it={"label":n,"value":a[2*i]}
+    if a[2*i+1]: it["level"]=a[2*i+1]
+    items.append(it)
+print(json.dumps({"items":items}))' "$HEALTH_TXT" "$HEALTH_LVL" "$CONT_TXT" "$CONT_LVL" "%$MAX_USE${DISK_SIZE:+ · $DISK_SIZE}" "$DISK_LEVEL" "$NET_TXT" "$NET_LVL" "$BACKUP_TEXT" "$BACKUP_LEVEL" "$TS_TXT" "$TS_LVL" "$HA_TXT" "$HA_LVL")" || true
+  # Alerts page: currently open alerts and recent history (newest first)
+  push_phone homelab-alerts-now "$(python3 -c 'import json,os,sys
+tr=os.environ.get("HL_LANG")=="tr"
+msgs=[m for m in sys.argv[1:] if m]
+items=[{"label":m,"value":"AÇIK" if tr else "OPEN","level":"error"} for m in msgs] or [{"label":"Şu an sorun yok" if tr else "No problems right now","value":"✓","level":"ok"}]
+print(json.dumps({"items":items}))' "${NOW[@]}")" || true
+  push_phone homelab-alerts-history "$(python3 -c 'import json,os,sys,time
+tr=os.environ.get("HL_LANG")=="tr"
+EVT={"AÇILDI":"OPENED","ÇÖZÜLDÜ":"RESOLVED"}
+rows=[]
+try:
+    for line in open(sys.argv[1],encoding="utf-8"):
+        p=line.rstrip("\n").split("|",2)
+        if len(p)==3 and p[0].isdigit(): rows.append(p)
+except OSError:
+    pass
+items=[]
+for ts,ev,msg in reversed(rows[-14:]):
+    items.append({"label":time.strftime("%d.%m %H:%M",time.localtime(int(ts)))+"  "+msg,"value":ev if tr else EVT.get(ev,ev),"level":"error" if ev=="AÇILDI" else "ok"})
+print(json.dumps({"items":items or [{"label":"Kayıt yok" if tr else "No records","value":""}]}))' "$HISTORY")" || true
+fi
