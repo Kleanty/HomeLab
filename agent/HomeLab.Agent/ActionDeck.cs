@@ -5,15 +5,15 @@ using System.Text;
 namespace HomeLab.Agent;
 
 /// <summary>Configured control actions. Phones never supply executable paths, credentials or shell commands.</summary>
-public sealed partial class ControlDeck : BackgroundService
+public sealed partial class ActionDeck : BackgroundService
 {
     private readonly ConfigStore _config;
-    private readonly ILogger<ControlDeck> _log;
+    private readonly ILogger<ActionDeck> _log;
     private readonly ControlTasks _tasks;
     private readonly PushStore? _push;
     private readonly AudioControl? _master;
 
-    public ControlDeck(ConfigStore config, AudioControl audio, ILogger<ControlDeck> log, PushStore push)
+    public ActionDeck(ConfigStore config, AudioControl audio, ILogger<ActionDeck> log, PushStore push)
     {
         _config = config; _log = log; _push = push; _master = audio;
         _tasks = new(config, log);

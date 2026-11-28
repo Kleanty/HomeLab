@@ -196,11 +196,11 @@ if sudo test -f /var/lib/homelab-installer/markers/logind-power-created; then
 fi
 # HomeLab agent: removed only if this installation installed it; user settings and phone pairings are not deleted.
 if sudo test -f /var/lib/homelab-installer/markers/homelab-installed; then
-  PB_APP="$(sudo cat /var/lib/homelab-installer/homelab-app 2>/dev/null || true)"
+  HL_APP="$(sudo cat /var/lib/homelab-installer/homelab-app 2>/dev/null || true)"
   systemctl --user disable --now homelab-agent.service >/dev/null 2>&1 || true
   rm -f "$HOME/.config/systemd/user/homelab-agent.service"
   systemctl --user daemon-reload >/dev/null 2>&1 || true
-  if [[ "$PB_APP" == /*/HomeLab/app && -d "$PB_APP" ]]; then rm -rf "$PB_APP"; fi
+  if [[ "$HL_APP" == /*/HomeLab/app && -d "$HL_APP" ]]; then rm -rf "$HL_APP"; fi
   sudo rm -f /var/lib/homelab-installer/homelab-app
   echo "$(T 'HomeLab ajanı kaldırıldı (ayarlar ve telefon eşleşmeleri korundu).' 'HomeLab agent removed (settings and phone pairings were kept).')"
 fi

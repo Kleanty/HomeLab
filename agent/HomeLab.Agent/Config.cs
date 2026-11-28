@@ -8,7 +8,7 @@ namespace HomeLab.Agent;
 
 public sealed class AgentConfig
 {
-    public ControlDeckConfig Controls { get; set; } = new();
+    public ActionDeckConfig Controls { get; set; } = new();
     public string? DeviceSerial { get; set; }
     public string? AdbPath { get; set; }
     public WeatherConfig Weather { get; set; } = new();

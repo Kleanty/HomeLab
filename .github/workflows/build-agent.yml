@@ -23,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           VER="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' agent/HomeLab.Agent/HomeLab.Agent.csproj | head -n 1)"
-          KUR="$(sed -n 's/^PB_VERSION=//p' KUR.sh | head -n 1)"
+          KUR="$(sed -n 's/^HL_VERSION=//p' KUR.sh | head -n 1)"
           [ -n "$VER" ] && [ "$VER" = "$KUR" ] || { echo "Sürüm uyuşmuyor: csproj=$VER KUR.sh=$KUR"; exit 1; }
           echo "VER=$VER" >> "$GITHUB_ENV"
 

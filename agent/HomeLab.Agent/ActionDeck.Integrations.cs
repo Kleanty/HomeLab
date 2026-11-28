@@ -1,6 +1,6 @@
 namespace HomeLab.Agent;
 
-public sealed partial class ControlDeck
+public sealed partial class ActionDeck
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _actionResults = new();
 

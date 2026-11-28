@@ -1,6 +1,6 @@
 namespace HomeLab.Agent;
 
-public sealed class ControlDeckConfig
+public sealed class ActionDeckConfig
 {
     public List<DeckAction> Actions { get; set; } = [];
 }

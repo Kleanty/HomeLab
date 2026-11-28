@@ -332,77 +332,77 @@ fi
 sudo usermod -aG plugdev "$USER_NAME" 2>/dev/null || true
 HOMELAB_OK=no
 HOMELAB_NEW=no
-PB_VERSION=0.9.27
-PB_REPO=Kleanty/HomeLab
-PB_ARCH=""
-case "$(uname -m)" in x86_64|amd64) PB_ARCH=x64;; aarch64|arm64) PB_ARCH=arm64;; esac
-PB_UNIT="$HOME/.config/systemd/user/homelab-agent.service"
-PB_URL=http://127.0.0.1:8765
-if [[ -z "$PB_ARCH" ]]; then
+HL_VERSION=0.9.27
+HL_REPO=Kleanty/HomeLab
+HL_ARCH=""
+case "$(uname -m)" in x86_64|amd64) HL_ARCH=x64;; aarch64|arm64) HL_ARCH=arm64;; esac
+HL_UNIT="$HOME/.config/systemd/user/homelab-agent.service"
+HL_URL=http://127.0.0.1:8765
+if [[ -z "$HL_ARCH" ]]; then
   echo "$(T "HomeLab ajanı bu işlemci için kurulamaz ($(uname -m)); atlandı." "The HomeLab agent cannot be installed for this CPU ($(uname -m)); skipped.")"
 elif ! systemctl --user show-environment >/dev/null 2>&1; then
   echo "$(T 'UYARI: Kullanıcı systemd oturumu yok; HomeLab ajanı kurulmadı.' 'WARNING: There is no user systemd session; the HomeLab agent was not installed.')"
   INSTALL_WARNINGS+=("$(T 'HomeLab ajanı kurulamadı: kullanıcı systemd oturumu yok' 'Could not install the HomeLab agent: there is no user systemd session')")
-elif [[ -e /var/lib/homelab-installer/markers/homelab-installed && ( -e "$PB_UNIT" || -x "$HOME/.local/share/HomeLab/app/HomeLabAgent" ) ]]; then
+elif [[ -e /var/lib/homelab-installer/markers/homelab-installed && ( -e "$HL_UNIT" || -x "$HOME/.local/share/HomeLab/app/HomeLabAgent" ) ]]; then
   echo "$(T 'HomeLab ajanı zaten kurulu; dokunulmadı.' 'The HomeLab agent is already installed; left untouched.')"
-  curl -fsS --max-time 2 "$PB_URL/api/info" >/dev/null 2>&1 && HOMELAB_OK=yes
+  curl -fsS --max-time 2 "$HL_URL/api/info" >/dev/null 2>&1 && HOMELAB_OK=yes
 else
-  PB_TMP="$(mktemp -d)"
-  PB_BASE="https://github.com/$PB_REPO/releases/download/v$PB_VERSION"
-  PB_ZIP="HomeLabAgent-$PB_VERSION-linux-$PB_ARCH.zip"
-  PB_SUM=""
-  PB_APP=""
-  echo "$(T "  HomeLab ajanı $PB_VERSION indiriliyor (yaklaşık 45 MB)..." "  Downloading HomeLab agent $PB_VERSION (about 45 MB)...")"
-  if curl -fsSL --max-time 60 -o "$PB_TMP/SHA256SUMS.txt" "$PB_BASE/SHA256SUMS-$PB_VERSION.txt" \
-    && curl -fsSL --max-time 900 -o "$PB_TMP/$PB_ZIP" "$PB_BASE/$PB_ZIP" \
-    && PB_SUM="$(awk -v n="$PB_ZIP" '{ f=$2; sub(/^\*/,"",f); if (f==n) { print tolower($1); exit } }' "$PB_TMP/SHA256SUMS.txt")" \
-    && [[ "$PB_SUM" =~ ^[0-9a-f]{64}$ ]] \
-    && echo "$PB_SUM  $PB_TMP/$PB_ZIP" | sha256sum -c --quiet - \
-    && unzip -q -o "$PB_TMP/$PB_ZIP" -d "$PB_TMP/agent" \
-    && chmod +x "$PB_TMP/agent/HomeLabAgent" \
-    && PB_APP="$("$PB_TMP/agent/HomeLabAgent" --print-install-dir 2>/dev/null | tail -n 1)" \
-    && [[ "$PB_APP" == /*/HomeLab/app && "$PB_APP" != *[\$\"\'\\]* ]]; then
+  HL_TMP="$(mktemp -d)"
+  HL_BASE="https://github.com/$HL_REPO/releases/download/v$HL_VERSION"
+  HL_ZIP="HomeLabAgent-$HL_VERSION-linux-$HL_ARCH.zip"
+  HL_SUM=""
+  HL_APP=""
+  echo "$(T "  HomeLab ajanı $HL_VERSION indiriliyor (yaklaşık 45 MB)..." "  Downloading HomeLab agent $HL_VERSION (about 45 MB)...")"
+  if curl -fsSL --max-time 60 -o "$HL_TMP/SHA256SUMS.txt" "$HL_BASE/SHA256SUMS-$HL_VERSION.txt" \
+    && curl -fsSL --max-time 900 -o "$HL_TMP/$HL_ZIP" "$HL_BASE/$HL_ZIP" \
+    && HL_SUM="$(awk -v n="$HL_ZIP" '{ f=$2; sub(/^\*/,"",f); if (f==n) { print tolower($1); exit } }' "$HL_TMP/SHA256SUMS.txt")" \
+    && [[ "$HL_SUM" =~ ^[0-9a-f]{64}$ ]] \
+    && echo "$HL_SUM  $HL_TMP/$HL_ZIP" | sha256sum -c --quiet - \
+    && unzip -q -o "$HL_TMP/$HL_ZIP" -d "$HL_TMP/agent" \
+    && chmod +x "$HL_TMP/agent/HomeLabAgent" \
+    && HL_APP="$("$HL_TMP/agent/HomeLabAgent" --print-install-dir 2>/dev/null | tail -n 1)" \
+    && [[ "$HL_APP" == /*/HomeLab/app && "$HL_APP" != *[\$\"\'\\]* ]]; then
     systemctl --user disable --now homelab-agent.service >/dev/null 2>&1 || true
     rm -f "$HOME/.config/systemd/user/homelab.service"
-    mkdir -p "$(dirname "$PB_APP")"
-    rm -rf "$PB_APP.new"
-    cp -R "$PB_TMP/agent" "$PB_APP.new" && mv "$PB_APP.new" "$PB_APP"
-    mkdir -p "$(dirname "$PB_UNIT")"
+    mkdir -p "$(dirname "$HL_APP")"
+    rm -rf "$HL_APP.new"
+    cp -R "$HL_TMP/agent" "$HL_APP.new" && mv "$HL_APP.new" "$HL_APP"
+    mkdir -p "$(dirname "$HL_UNIT")"
     # Start the agent with the docker group even before the first re-login (the user was only just added to the group).
-    cat > "$PB_APP/run-agent.sh" <<'EOF_PBRUN'
+    cat > "$HL_APP/run-agent.sh" <<'EOF_HLRUN'
 #!/bin/sh
 here="$(dirname "$0")"
 if id -nG | tr ' ' '\n' | grep -qx docker || ! getent group docker >/dev/null 2>&1; then exec "$here/HomeLabAgent" "$@"; fi
 exec sg docker -c "exec \"$here/HomeLabAgent\""
-EOF_PBRUN
-    chmod 0755 "$PB_APP/run-agent.sh"
-    cat > "$PB_UNIT" <<EOF_PBUNIT
+EOF_HLRUN
+    chmod 0755 "$HL_APP/run-agent.sh"
+    cat > "$HL_UNIT" <<EOF_PBUNIT
 [Unit]
 Description=$(T 'HomeLab ajanı (telefon paneli ve servis kontrolü)' 'HomeLab agent (phone panel and service control)')
 
 [Service]
-ExecStart="$PB_APP/run-agent.sh"
+ExecStart="$HL_APP/run-agent.sh"
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=default.target
 EOF_PBUNIT
-    printf '%s\n' "$PB_APP" | sudo tee /var/lib/homelab-installer/homelab-app >/dev/null
+    printf '%s\n' "$HL_APP" | sudo tee /var/lib/homelab-installer/homelab-app >/dev/null
     sudo touch /var/lib/homelab-installer/markers/homelab-installed
     HOMELAB_NEW=yes
     systemctl --user daemon-reload
     if systemctl --user enable homelab-agent.service >/dev/null 2>&1 && systemctl --user restart homelab-agent.service >/dev/null 2>&1; then
       for _ in $(seq 1 30); do
-        curl -fsS --max-time 2 "$PB_URL/api/info" >/dev/null 2>&1 && HOMELAB_OK=yes && break
+        curl -fsS --max-time 2 "$HL_URL/api/info" >/dev/null 2>&1 && HOMELAB_OK=yes && break
         sleep 1
       done
     fi
   else
     echo "$(T 'UYARI: HomeLab ajanı indirilemedi veya doğrulanamadı; kurulmadı.' 'WARNING: The HomeLab agent could not be downloaded or verified; it was not installed.')"
-    INSTALL_WARNINGS+=("$(T "HomeLab ajanı kurulamadı: https://github.com/$PB_REPO > Actions > build-agent çalıştırılmış ve v$PB_VERSION sürümü yayımlanmış olmalı; sonra KUR.sh'yi yeniden çalıştır" "Could not install the HomeLab agent: https://github.com/$PB_REPO > Actions > build-agent must have been run and release v$PB_VERSION published; then run KUR.sh again")")
+    INSTALL_WARNINGS+=("$(T "HomeLab ajanı kurulamadı: https://github.com/$HL_REPO > Actions > build-agent çalıştırılmış ve v$HL_VERSION sürümü yayımlanmış olmalı; sonra KUR.sh'yi yeniden çalıştır" "Could not install the HomeLab agent: https://github.com/$HL_REPO > Actions > build-agent must have been run and release v$HL_VERSION published; then run KUR.sh again")")
   fi
-  rm -rf "$PB_TMP"
+  rm -rf "$HL_TMP"
   if [[ "$HOMELAB_OK" == yes ]]; then
     # Login for the settings page (same username and password as everything else). Written BEFORE the settings call below: an agent left from an earlier install may already require a login, and the call then needs the new one.
     if HL_WEB_USER="$ACCOUNT_USER" HL_WEB_PW="$ACCOUNT_PW" HL_WEB_FILE="$HOME/.config/HomeLab/web-login" python3 -I - <<'PY_WEBLOGIN'
@@ -425,7 +425,7 @@ PY_WEBLOGIN
       INSTALL_WARNINGS+=("$(T 'Ayar sayfası giriş şifresi yazılamadı; 127.0.0.1:8765 şifresiz açık kalır' 'Could not write the settings page login; 127.0.0.1:8765 stays open without a password')")
     fi
     # Turn off automatic updates; on a first install, write pages suited to a server.
-    if ! HL_LANG="$HL_LANG" PB_NEW="$HOMELAB_NEW" HL_WEB_USER="$ACCOUNT_USER" HL_WEB_PW="$ACCOUNT_PW" python3 -I - "$PB_URL" <<'PY_PBCFG'
+    if ! HL_LANG="$HL_LANG" HL_NEW="$HOMELAB_NEW" HL_WEB_USER="$ACCOUNT_USER" HL_WEB_PW="$ACCOUNT_PW" python3 -I - "$HL_URL" <<'PY_PBCFG'
 import json, os, sys, urllib.request
 lang = "tr" if os.environ.get("HL_LANG") == "tr" else "en"
 S = {
@@ -445,7 +445,7 @@ with urllib.request.urlopen(urllib.request.Request(base + "/api/settings", heade
     version = r.headers.get("X-Config-Version")
     cfg = json.load(r)
 cfg.setdefault("updates", {})["auto"] = False
-if os.environ.get("PB_NEW") == "yes":
+if os.environ.get("HL_NEW") == "yes":
     disp = cfg.setdefault("display", {})
     disp.update(language=os.environ.get("HL_LANG", "en"), theme="amoled", accent="#2dd4bf")
     disp["appearance"] = {"style": "cards"}
@@ -1231,7 +1231,7 @@ fi
     echo "YEREL WEB SAYFASI (sunucunun kendi tarayıcısında): http://127.0.0.1:8088"
     echo
     if [[ "$HOMELAB_OK" == yes ]]; then
-      echo "TELEFON PANELİ (HomeLab ajanı $PB_VERSION, otomatik güncelleme kapalı): ayarlar sunucuda http://127.0.0.1:8765   kullanıcı: $ACCOUNT_USER   parola: kurulumda belirlediğin"
+      echo "TELEFON PANELİ (HomeLab ajanı $HL_VERSION, otomatik güncelleme kapalı): ayarlar sunucuda http://127.0.0.1:8765   kullanıcı: $ACCOUNT_USER   parola: kurulumda belirlediğin"
       echo "  Telefonu bağlamak için: 1) APK: GitHub deponda Actions > build-apk > homelab-panel-apk (HomeLab Panel) indirip telefona kur."
       echo "  2a) USB: telefonda Geliştirici seçenekleri > USB hata ayıklama açık, kabloyu sunucuya tak, telefondaki 'Bu bilgisayara izin ver' sorusunu onayla (adb kurulu; yeniden girişten sonra aktif)."
       echo "  2b) Wi-Fi: sunucuda 127.0.0.1:8765 > Settings > General > Wi-Fi & Tailscale > 'Pair a phone over Wi-Fi' ve QR kodu telefondan okut."
@@ -1282,7 +1282,7 @@ fi
     echo "LOCAL WEB PAGE (in the server's own browser): http://127.0.0.1:8088"
     echo
     if [[ "$HOMELAB_OK" == yes ]]; then
-      echo "PHONE PANEL (HomeLab agent $PB_VERSION, automatic updates off): settings on the server at http://127.0.0.1:8765   user: $ACCOUNT_USER   password: the one you chose during setup"
+      echo "PHONE PANEL (HomeLab agent $HL_VERSION, automatic updates off): settings on the server at http://127.0.0.1:8765   user: $ACCOUNT_USER   password: the one you chose during setup"
       echo "  To connect the phone: 1) APK: in your GitHub repo go to Actions > build-apk > homelab-panel-apk (HomeLab Panel), download it and install it on the phone."
       echo "  2a) USB: on the phone enable Developer options > USB debugging, plug the cable into the server and accept the 'Allow this computer' prompt on the phone (adb is installed; active after you log in again)."
       echo "  2b) Wi-Fi: on the server open 127.0.0.1:8765 > Settings > General > Wi-Fi & Tailscale > 'Pair a phone over Wi-Fi' and scan the QR code with the phone."

@@ -66,8 +66,8 @@ builder.Services.AddSingleton(usb);
 builder.Services.AddSingleton<AudioControl>();
 builder.Services.AddSingleton(_ => new ShortcutIconUploads(Path.Combine(configDir, "icons")));
 builder.Services.AddSingleton<PairingCodes>();
-builder.Services.AddSingleton<ControlDeck>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<ControlDeck>());
+builder.Services.AddSingleton<ActionDeck>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ActionDeck>());
 builder.Services.AddSingleton<PushStore>();
 builder.Services.AddSingleton<CommandRunner>();
 builder.Services.AddSingleton<HomeAssistant>();
@@ -86,10 +86,10 @@ builder.Services.AddHostedService<Tray>();
 
 var app = builder.Build();
 
-app.MapGet("/api/controls/state", async (ControlDeck deck, CancellationToken ct) => Results.Json(await deck.Snapshot(ct)));
+app.MapGet("/api/controls/state", async (ActionDeck deck, CancellationToken ct) => Results.Json(await deck.Snapshot(ct)));
 app.MapPost("/api/controls/command/{kind}", async (string kind, string? id, string? op, int? value,
-    ControlDeck deck, CancellationToken ct) => Results.Json(await deck.Act(kind, id, op, value, ct)));
-app.MapGet("/api/controls/task-output/{id}", (string id, ControlDeck deck) => Results.Text(deck.TaskOutput(id), "text/plain"));
+    ActionDeck deck, CancellationToken ct) => Results.Json(await deck.Act(kind, id, op, value, ct)));
+app.MapGet("/api/controls/task-output/{id}", (string id, ActionDeck deck) => Results.Text(deck.TaskOutput(id), "text/plain"));
 
 // The panel in a desktop browser (the layout editor's live preview, /panel/) calls the API as /agent/api/..., the same
 // path the phone uses; on the local port that is simply /api/... Routing runs after this, so it sees the new path.
@@ -324,7 +324,7 @@ app.MapGet("/api/settings", (HttpRequest req, ConfigStore cfg, HttpResponse res)
     return Results.Text(json, "application/json; charset=utf-8");
 });
 
-app.MapPut("/api/settings", async (HttpRequest req, ConfigStore cfg, ControlDeck deck, CameraFeeds cameras, ShortcutIconUploads icons, ILogger<Program> log, CancellationToken ct) =>
+app.MapPut("/api/settings", async (HttpRequest req, ConfigStore cfg, ActionDeck deck, CameraFeeds cameras, ShortcutIconUploads icons, ILogger<Program> log, CancellationToken ct) =>
 {
     if (req.ContentType?.StartsWith("application/json") != true) return Results.StatusCode(415);
     using var r = new StreamReader(req.Body);
